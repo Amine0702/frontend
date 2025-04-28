@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000/api",
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
     prepareHeaders: (headers, { getState }) => {
       // Récupérer l'ID utilisateur de Clerk depuis le localStorage
       const clerkUserId = localStorage.getItem("currentUserId")
@@ -16,7 +16,7 @@ export const api = createApi({
       return headers
     },
   }),
-  tagTypes: ["Projects", "Tasks", "User", "Columns", "Reports"],
+  tagTypes: ["Projects", "Tasks", "User", "Columns", "Reports", "Teams", "TeamMembers", "ProjectStats"],
   endpoints: (builder) => ({
     // User endpoints
     createUser: builder.mutation({
@@ -180,53 +180,82 @@ export const api = createApi({
       invalidatesTags: (result, error, { taskId }) => [{ type: "Tasks", id: taskId }],
     }),
 
-    // Nouveaux endpoints pour les rapports
-    getProjectStats: builder.query({
-      query: (projectId) => `/projects/${projectId}/stats`,
-      providesTags: (result, error, id) => [{ type: "Reports", id }],
-    }),
-
-    getProjectsReport: builder.query({
-      query: (params) => ({
-        url: "/reports/projects",
-        params: {
-          projectId: params.projectId,
-          period: params.period,
-          reportType: params.reportType,
-        },
-      }),
-      providesTags: ["Reports"],
-    }),
-
-    getTasksReport: builder.query({
-      query: (params) => ({
-        url: "/reports/tasks",
+    // Team endpoints
+    getTeams: builder.query({
+      query: (params = {}) => ({
+        url: "/teams",
         params: params,
       }),
-      providesTags: ["Reports"],
+      transformResponse: (response: unknown) => {
+        console.log("Raw teams response:", response)
+        // Vérifier si response est un objet et s'il a une propriété data
+        if (response && typeof response === "object" && "data" in response) {
+          return (response as { data: any }).data
+        }
+        return response
+      },
+      providesTags: ["Teams"],
     }),
 
-    getHistoricalReports: builder.query({
-      query: (clerkUserId) => `/reports/history/${clerkUserId}`,
-      providesTags: ["Reports"],
+    getTeam: builder.query({
+      query: (teamId) => `/teams/${teamId}`,
+      providesTags: (result, error, id) => [{ type: "Teams", id }],
     }),
 
-    generateReport: builder.mutation({
-      query: (reportData) => ({
-        url: "/reports/generate",
+    getTeamStats: builder.query({
+      query: () => "/teams/stats/summary",
+      providesTags: ["Teams"],
+    }),
+
+    createTeam: builder.mutation({
+      query: (teamData) => ({
+        url: "/teams",
         method: "POST",
-        body: reportData,
+        body: teamData,
       }),
-      invalidatesTags: ["Reports"],
+      invalidatesTags: ["Teams"],
     }),
 
-    scheduleReport: builder.mutation({
-      query: (scheduleData) => ({
-        url: "/reports/schedule",
-        method: "POST",
-        body: scheduleData,
+    updateTeam: builder.mutation({
+      query: ({ id, ...teamData }) => ({
+        url: `/teams/${id}`,
+        method: "PUT",
+        body: teamData,
       }),
-      invalidatesTags: ["Reports"],
+      invalidatesTags: (result, error, { id }) => [{ type: "Teams", id }],
+    }),
+
+    deleteTeam: builder.mutation({
+      query: (id) => ({
+        url: `/teams/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Teams"],
+    }),
+
+    addTeamMembers: builder.mutation({
+      query: ({ teamId, memberIds }) => ({
+        url: `/teams/${teamId}/members`,
+        method: "POST",
+        body: { member_ids: memberIds },
+      }),
+      invalidatesTags: (result, error, { teamId }) => [{ type: "Teams", id: teamId }],
+    }),
+
+    removeTeamMembers: builder.mutation({
+      query: ({ teamId, memberIds }) => ({
+        url: `/teams/${teamId}/members`,
+        method: "DELETE",
+        body: { member_ids: memberIds },
+      }),
+      invalidatesTags: (result, error, { teamId }) => [{ type: "Teams", id: teamId }],
+    }),
+
+    exportTeamMembers: builder.query({
+      query: (teamId) => ({
+        url: `/teams/${teamId}/export-members`,
+        responseHandler: (response) => response.blob(),
+      }),
     }),
 
     // Notes endpoints
@@ -265,8 +294,93 @@ export const api = createApi({
       query: (searchTerm) => `/notes/search?term=${searchTerm}`,
       providesTags: ["Reports"],
     }),
+
+    // Nouveaux endpoints pour les rapports
+    getProjectStats: builder.query({
+      query: (projectId) => `/projects/${projectId}/stats`,
+      providesTags: (result, error, id) => [
+        { type: "ProjectStats", id },
+        { type: "Projects", id },
+      ],
+    }),
+
+    getAllProjectsStats: builder.query({
+      query: () => `/projects/stats/all`,
+      providesTags: ["ProjectStats", "Projects"],
+    }),
+
+    getProjectReports: builder.query({
+      query: (projectId) => `/projects/${projectId}/reports`,
+      providesTags: (result, error, id) => [
+        { type: "Reports", id },
+        { type: "Projects", id },
+      ],
+    }),
+
+    generateProjectReport: builder.mutation({
+      query: ({ projectId, reportData }) => ({
+        url: `/projects/${projectId}/reports`,
+        method: "POST",
+        body: reportData,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: "Reports" }, { type: "Projects", id: projectId }],
+    }),
+
+    scheduleProjectReport: builder.mutation({
+      query: ({ projectId, scheduleData }) => ({
+        url: `/projects/${projectId}/reports/schedule`,
+        method: "POST",
+        body: scheduleData,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: "Reports" }, { type: "Projects", id: projectId }],
+    }),
+
+    getReportHistory: builder.query({
+      query: (params = {}) => ({
+        url: `/reports/history`,
+        params: params,
+      }),
+      providesTags: ["Reports"],
+    }),
+
+    downloadReport: builder.query({
+      query: (reportId) => ({
+        url: `/reports/${reportId}/download`,
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
+
+    // Nouveaux endpoints pour les statistiques d'équipe dans les rapports
+    getTeamPerformance: builder.query({
+      query: (teamId) => `/teams/${teamId}/performance`,
+      providesTags: (result, error, id) => [{ type: "Teams", id }, { type: "ProjectStats" }],
+    }),
+
+    getTeamMemberPerformance: builder.query({
+      query: (memberId) => `/team-members/${memberId}/performance`,
+      providesTags: (result, error, id) => [{ type: "TeamMembers", id }, { type: "ProjectStats" }],
+    }),
+
+    // Endpoint pour obtenir les statistiques combinées pour les rapports
+    getReportDashboard: builder.query({
+      query: () => `/reports/dashboard`,
+      providesTags: ["Projects", "Teams", "ProjectStats", "Reports"],
+    }),
   }),
 })
+
+// Add this new endpoint to fetch all teams directly from the backend
+export const useGetAllTeamsQuery = api.injectEndpoints({
+  endpoints: (builder) => ({
+    getAllTeams: builder.query({
+      query: () => ({
+        url: `/teams`,
+        method: "GET",
+      }),
+      providesTags: ["Teams"],
+    }),
+  }),
+}).useGetAllTeamsQuery
 
 export const {
   useCreateUserMutation,
@@ -286,17 +400,33 @@ export const {
   useToggleTaskTimerMutation,
   useAddCommentMutation,
   useAddAttachmentMutation,
-  // Nouveaux hooks pour les rapports
-  useGetProjectStatsQuery,
-  useGetProjectsReportQuery,
-  useGetTasksReportQuery,
-  useGetHistoricalReportsQuery,
-  useGenerateReportMutation,
-  useScheduleReportMutation,
+  // Team endpoints
+  useGetTeamsQuery,
+  useGetTeamQuery,
+  useGetTeamStatsQuery,
+  useCreateTeamMutation,
+  useUpdateTeamMutation,
+  useDeleteTeamMutation,
+  useAddTeamMembersMutation,
+  useRemoveTeamMembersMutation,
+  useExportTeamMembersQuery,
+
   // Nouveaux hooks pour les notes
   useGetUserNotesQuery,
   useCreateNoteMutation,
   useUpdateNoteMutation,
   useDeleteNoteMutation,
   useSearchNotesQuery,
+
+  // Nouveaux hooks pour les rapports
+  useGetProjectStatsQuery,
+  useGetAllProjectsStatsQuery,
+  useGetProjectReportsQuery,
+  useGenerateProjectReportMutation,
+  useScheduleProjectReportMutation,
+  useGetReportHistoryQuery,
+  useDownloadReportQuery,
+  useGetTeamPerformanceQuery,
+  useGetTeamMemberPerformanceQuery,
+  useGetReportDashboardQuery,
 } = api

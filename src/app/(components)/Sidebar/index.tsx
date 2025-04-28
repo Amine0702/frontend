@@ -63,7 +63,7 @@ const Sidebar = () => {
             <SidebarLink icon={Video} label="Join Meet" href="/meeting" isCollapsed={isSidebarCollapsed} />
             <SidebarLink icon={Users} label="Teams" href="/teams" isCollapsed={isSidebarCollapsed} />
             <SidebarLink icon={NotebookTabs} label="Notes" href="/notes" isCollapsed={isSidebarCollapsed} />
-            <SidebarLink icon={User} label="Profile" href="/Profile" isCollapsed={isSidebarCollapsed} />
+            <SidebarLink icon={User} label="Profile" href="/profile" isCollapsed={isSidebarCollapsed} />
           </div>
 
           <div className="mt-6">
