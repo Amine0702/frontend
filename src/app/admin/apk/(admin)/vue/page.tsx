@@ -4,12 +4,8 @@ import {
   UsersIcon,
   ClipboardDocumentCheckIcon,
   ArrowTrendingUpIcon,
-  PlusCircleIcon,
   BriefcaseIcon,
   ClockIcon,
-  CalendarIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   LightBulbIcon,
   RocketLaunchIcon,
   SparklesIcon,
@@ -20,27 +16,16 @@ import {
 } from "@heroicons/react/24/outline"
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { motion } from "framer-motion"
-import { useEffect, useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import React from "react"
-import {
-  format,
-  addDays,
-  addMonths,
-  subMonths,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  startOfWeek,
-  endOfWeek,
-  isSameMonth,
-  isSameDay,
-} from "date-fns"
-import { fr } from "date-fns/locale"
+import { format, addDays } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { createGlobalStyle } from "styled-components"
+import { useGetDashboardDataQuery } from "@/app/state/api"
+import type { BackendTeamMember } from "@/app/projects/types/kanban"
 
 // Ajouter des styles CSS personnalisés pour la barre de défilement
-import { createGlobalStyle } from "styled-components"
 
 const GlobalStyle = createGlobalStyle`
   .custom-scrollbar::-webkit-scrollbar {
@@ -62,11 +47,7 @@ const GlobalStyle = createGlobalStyle`
     background: rgba(139, 92, 246, 0.7);
   }
 
-  /* Styles pour s'assurer que le calendrier affiche correctement toutes les dates */
-  .rdp {
-    margin: 0 !important;
-    width: 100% !important;
-  }
+  
   
   /* Empêcher le défilement horizontal dans le calendrier */
   .rdp-months {
@@ -300,22 +281,30 @@ type ModalType =
   | null
 
 interface Project {
+  id: number
   name: string
   progress: number
   deadline: string
   color: string
   details: string
-  team?: string[]
+  team?: BackendTeamMember[]
+  end_date?: string
+  description?: string
 }
 
 interface Task {
-  id: string
-  name: string
+  id: number
+  title: string
   progress: string
   details: string
   assignedTo: string
+  assignee?: BackendTeamMember
   deadline: string
   priority: "high" | "medium" | "low"
+  description: string
+  due_date: string
+  assignee_id: number | null
+  project_name?: string
 }
 
 interface Meeting {
@@ -348,7 +337,6 @@ interface ModalProps {
   onClose: () => void
 }
 
-/* Pour les blocs statistiques cliquables */
 interface StatBlockProps {
   title: string
   value: string
@@ -374,19 +362,20 @@ interface RecentActivityProps extends ClickableProps {
 interface ProjectSectionProps {
   onProjectClick: (project: Project) => void
   summary?: boolean
+  projects: Project[]
 }
 
 interface TeamMember {
-  id: string
+  id: number
   name: string
   role: string
   avatar: string
   status: "active" | "inactive"
   email: string
-  phone: string
-  address: string
-  project: string
-  post: string
+  phone?: string
+  address?: string
+  project?: string
+  post?: string
 }
 
 interface TeamGroup {
@@ -421,188 +410,6 @@ const data = [
   { name: "Mar", value: 83, details: "Baisse de rythme" },
   { name: "Avr", value: 92, details: "Excellente performance" },
   { name: "Mai", value: 81, details: "Objectif presque atteint" },
-]
-
-const projects: Project[] = [
-  {
-    name: "Migration Cloud",
-    progress: 65,
-    deadline: "15/09/24",
-    color: "#EC4899",
-    details:
-      "Mise en place d'une infrastructure cloud sécurisée et évolutive pour l'ensemble des applications de l'entreprise.",
-    team: ["alice@example.com", "bob@example.com"],
-  },
-  {
-    name: "Refonte UI/UX",
-    progress: 85,
-    deadline: "30/08/24",
-    color: "#8B5CF6",
-    details:
-      "Modernisation de l'interface utilisateur pour améliorer l'expérience client et augmenter les conversions.",
-    team: ["claire@example.com"],
-  },
-  {
-    name: "Intégration IA",
-    progress: 45,
-    deadline: "01/10/24",
-    color: "#6366F1",
-    details:
-      "Implémentation d'algorithmes d'IA pour optimiser les processus internes et améliorer la prise de décision.",
-    team: ["bob@example.com"],
-  },
-  {
-    name: "Sécurité Réseau",
-    progress: 90,
-    deadline: "10/09/24",
-    color: "#10B981",
-    details: "Renforcement de la sécurité du réseau et mise en place de protocoles de protection des données.",
-    team: ["alice@example.com"],
-  },
-  {
-    name: "Optimisation SEO",
-    progress: 75,
-    deadline: "20/09/24",
-    color: "#F59E0B",
-    details: "Amélioration du référencement naturel pour augmenter la visibilité en ligne.",
-    team: ["claire@example.com"],
-  },
-]
-
-const completedTasks: Task[] = [
-  {
-    id: "t1",
-    name: "Mise à jour des serveurs",
-    progress: "100%",
-    details:
-      "Migration des serveurs vers la dernière version avec zéro temps d'arrêt. Optimisation des performances et de la sécurité.",
-    assignedTo: "Bob Martin",
-    deadline: "10/08/24",
-    priority: "high",
-  },
-  {
-    id: "t2",
-    name: "Refonte de la page d'accueil",
-    progress: "100%",
-    details:
-      "Création d'une nouvelle page d'accueil responsive avec des éléments interactifs et une meilleure conversion.",
-    assignedTo: "Claire Legrand",
-    deadline: "15/08/24",
-    priority: "medium",
-  },
-  {
-    id: "t3",
-    name: "Audit de sécurité",
-    progress: "100%",
-    details:
-      "Analyse complète des vulnérabilités et mise en place de correctifs pour renforcer la sécurité des applications.",
-    assignedTo: "Alice Dupont",
-    deadline: "05/08/24",
-    priority: "high",
-  },
-  {
-    id: "t4",
-    name: "Optimisation des requêtes SQL",
-    progress: "100%",
-    details: "Amélioration des performances de la base de données en optimisant les requêtes les plus fréquentes.",
-    assignedTo: "Bob Martin",
-    deadline: "12/08/24",
-    priority: "medium",
-  },
-]
-
-const ongoingTasks: Task[] = [
-  {
-    id: "t5",
-    name: "Développement API REST",
-    progress: "75%",
-    details:
-      "Création d'une API RESTful pour faciliter l'intégration avec des services tiers et améliorer l'interopérabilité.",
-    assignedTo: "Bob Martin",
-    deadline: "25/08/24",
-    priority: "high",
-  },
-  {
-    id: "t6",
-    name: "Conception des maquettes mobiles",
-    progress: "60%",
-    details: "Création de maquettes pour l'application mobile en suivant les principes du Material Design.",
-    assignedTo: "Claire Legrand",
-    deadline: "28/08/24",
-    priority: "medium",
-  },
-  {
-    id: "t7",
-    name: "Implémentation du système de paiement",
-    progress: "40%",
-    details: "Intégration d'une solution de paiement sécurisée pour les transactions en ligne.",
-    assignedTo: "Alice Dupont",
-    deadline: "05/09/24",
-    priority: "high",
-  },
-  {
-    id: "t8",
-    name: "Tests d'intégration",
-    progress: "30%",
-    details: "Mise en place de tests automatisés pour vérifier le bon fonctionnement des différents modules.",
-    assignedTo: "Bob Martin",
-    deadline: "10/09/24",
-    priority: "medium",
-  },
-]
-
-const meetingsToday: Meeting[] = [
-  {
-    title: "Réunion d'équipe",
-    time: "10:00",
-    details: "Discussion de projet",
-  },
-  {
-    title: "Réunion client",
-    time: "14:00",
-    details: "Présentation de la maquette",
-  },
-]
-
-const unreadMessages: Message[] = [
-  { from: "Jean", message: "Bonjour, avez-vous vu le rapport ?" },
-  { from: "Marie", message: "Mise à jour sur le projet ?" },
-]
-
-const finishedProjects: Project[] = [
-  {
-    name: "Projet Alpha",
-    progress: 100,
-    deadline: "N/A",
-    color: "#8B5CF6",
-    details:
-      "Projet terminé avec succès. Mise en place d'une nouvelle infrastructure de données qui a permis d'améliorer les performances de 40%.",
-    team: ["alice@example.com", "bob@example.com"],
-  },
-  {
-    name: "Projet Beta",
-    progress: 100,
-    deadline: "N/A",
-    color: "#6366F1",
-    details:
-      "Projet terminé et archivé. Développement d'une application mobile qui a reçu d'excellents retours des utilisateurs.",
-    team: ["claire@example.com"],
-  },
-  {
-    name: "Refonte CRM",
-    progress: 100,
-    deadline: "N/A",
-    color: "#EC4899",
-    details:
-      "Modernisation complète du système CRM avec intégration de fonctionnalités d'IA pour la gestion des clients.",
-    team: ["bob@example.com", "claire@example.com"],
-  },
-]
-
-const recentActivities: Activity[] = [
-  { id: 1, user: "Alice", action: "a créé un nouveau projet", time: "2 min" },
-  { id: 2, user: "Bob", action: "a terminé une tâche", time: "10 min" },
-  { id: 3, user: "Claire", action: "a commenté", time: "1h" },
 ]
 
 const innovationIdeas = [
@@ -696,45 +503,6 @@ const innovationDetails: Record<string, InnovationDetail> = {
   },
 }
 
-const teamMembers: TeamMember[] = [
-  {
-    id: "tm1",
-    name: "Alice Dupont",
-    role: "Chef de Projet",
-    avatar: "https://randomuser.me/api/portraits/women/1.jpg",
-    status: "active",
-    email: "alice@example.com",
-    phone: "06 01 02 03 04",
-    address: "12 rue de Paris, 75001 Paris",
-    project: "Migration Cloud",
-    post: "Admin",
-  },
-  {
-    id: "tm2",
-    name: "Bob Martin",
-    role: "Développeur",
-    avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-    status: "active",
-    email: "bob@example.com",
-    phone: "06 05 06 07 08",
-    address: "34 avenue de Lyon, 69000 Lyon",
-    project: "Intégration IA",
-    post: "User",
-  },
-  {
-    id: "tm3",
-    name: "Claire Legrand",
-    role: "Designer",
-    avatar: "https://randomuser.me/api/portraits/women/2.jpg",
-    status: "inactive",
-    email: "claire@example.com",
-    phone: "06 09 10 11 12",
-    address: "56 boulevard de Nice, 06000 Nice",
-    project: "Refonte UI/UX",
-    post: "Manager",
-  },
-]
-
 // Exemple de données d'événements prédéfinies pour le calendrier
 const exampleEvents: CalendarEvent[] = [
   {
@@ -755,6 +523,14 @@ const exampleEvents: CalendarEvent[] = [
   },
 ]
 
+const recentActivities: Activity[] = [
+  { id: 1, user: "Alice", action: "a mis à jour le projet X", time: "Il y a 2 heures" },
+  { id: 2, user: "Bob", action: "a commenté la tâche Y", time: "Il y a 5 heures" },
+  { id: 3, user: "Charlie", action: "a créé un nouveau projet Z", time: "Il y a 1 jour" },
+  { id: 4, user: "David", action: "a terminé la tâche A", time: "Il y a 2 jours" },
+  { id: 5, user: "Eve", action: "a rejoint l'équipe B", time: "Il y a 3 jours" },
+]
+
 /* =================== Composants =================== */
 
 // Composant Modal générique (affiche en recouvrant entièrement l'écran, sans navbar)
@@ -773,7 +549,11 @@ const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => (
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{title}</h2>
-        <Button variant="ghost" onClick={onClose} className="hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white close-button">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          className="hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-white close-button"
+        >
           Fermer
         </Button>
       </div>
@@ -805,11 +585,11 @@ const StatBlock: React.FC<StatBlockProps> = ({ title, value, change, icon, onCli
   </motion.div>
 )
 
-// Composant ProjectTimeline (Projets prioritaires)
-const ProjectTimeline: React.FC<ProjectTimelineProps> = ({ onClick }) => {
-  // Filtrer les projets prioritaires (progress >= 75%)
-  const priorityProjects = projects.filter((project) => project.progress >= 75)
-
+// Modifier le composant ProjectTimeline pour supprimer la barre de défilement horizontale
+const ProjectTimeline: React.FC<ProjectTimelineProps & { priorityProjects: Project[] }> = ({
+  onClick,
+  priorityProjects,
+}) => {
   return (
     <motion.div
       onClick={onClick}
@@ -822,233 +602,30 @@ const ProjectTimeline: React.FC<ProjectTimelineProps> = ({ onClick }) => {
         Projets prioritaires
       </h3>
       <div className="space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-        {priorityProjects.map((project) => (
-          <div key={project.name} className="space-y-3">
-            <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
-              <span>{project.name}</span>
-              <span className="text-slate-500">{project.deadline}</span>
+        {priorityProjects.length > 0 ? (
+          priorityProjects.map((project) => (
+            <div key={project.id} className="space-y-3">
+              <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
+                <span>{project.name}</span>
+                <span className="text-slate-500">{project.deadline}</span>
+              </div>
+              <div className="relative h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${project.progress}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="h-full rounded-full absolute"
+                  style={{
+                    background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
+                  }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{project.details.substring(0, 80)}...</p>
             </div>
-            <div className="relative h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${project.progress}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-                className="h-full rounded-full absolute"
-                style={{
-                  background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{project.details.substring(0, 80)}...</p>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
-// Créer un composant de calendrier personnalisé
-const CustomCalendar: React.FC<{
-  currentMonth: Date
-  selectedDate: Date
-  onDateSelect: (date: Date) => void
-  events: CalendarEvent[]
-}> = ({ currentMonth, selectedDate, onDateSelect, events }) => {
-  // Générer les jours du mois actuel
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
-  const startDate = startOfWeek(monthStart, { locale: fr })
-  const endDate = endOfWeek(monthEnd, { locale: fr })
-
-  const dateFormat = "d"
-  const dayFormat = "EEE"
-  const rows = []
-
-  // Jours de la semaine (en-têtes)
-  const days = []
-  const daysOfWeek = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
-
-  for (let i = 0; i < 7; i++) {
-    days.push(<th key={i}>{daysOfWeek[i]}</th>)
-  }
-
-  // Générer les jours
-  const days_array = eachDayOfInterval({
-    start: startDate,
-    end: endDate,
-  })
-
-  // Créer les lignes du calendrier (5 semaines)
-  let cells = []
-
-  days_array.forEach((day, i) => {
-    const formattedDate = format(day, "yyyy-MM-dd")
-    const hasEvent = events.some((event) => event.date === formattedDate)
-    const isToday = isSameDay(day, new Date())
-    const isSelected = isSameDay(day, selectedDate)
-    const isCurrentMonth = isSameMonth(day, currentMonth)
-
-    cells.push(
-      <td key={day.toString()}>
-        <div
-          className={`custom-calendar-day ${isToday ? "today" : ""} ${isSelected ? "selected" : ""} ${!isCurrentMonth ? "other-month" : ""}`}
-          onClick={() => onDateSelect(day)}
-        >
-          {format(day, dateFormat)}
-          {hasEvent && <div className="event-indicator"></div>}
-        </div>
-      </td>,
-    )
-
-    // Créer une nouvelle ligne après 7 jours
-    if ((i + 1) % 7 === 0) {
-      rows.push(<tr key={day.toString()}>{cells}</tr>)
-      cells = []
-    }
-  })
-
-  // S'assurer d'avoir exactement 5 lignes
-  while (rows.length < 5) {
-    const emptyRow = []
-    for (let i = 0; i < 7; i++) {
-      emptyRow.push(
-        <td key={`empty-${i}`}>
-          <div className="custom-calendar-day opacity-0">-</div>
-        </td>,
-      )
-    }
-    rows.push(<tr key={`empty-row-${rows.length}`}>{emptyRow}</tr>)
-  }
-
-  // Limiter à 5 lignes si nécessaire
-  const finalRows = rows.slice(0, 5)
-
-  return (
-    <table className="custom-calendar">
-      <thead>
-        <tr>{days}</tr>
-      </thead>
-      <tbody>{finalRows}</tbody>
-    </table>
-  )
-}
-
-// Modifier le composant CalendarWidget pour qu'il soit plus compact et mieux présenté
-const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onClick, className }) => {
-  const today = new Date()
-  const [date, setDate] = useState<Date>(today)
-  const [currentMonth, setCurrentMonth] = useState<Date>(today)
-  const [events, setEvents] = useState<CalendarEvent[]>(exampleEvents)
-
-  // Utiliser le même état d'événements que le composant principal
-  useEffect(() => {
-    // Synchroniser avec les événements du composant principal
-    const dashboardEvents = window.calendarEvents || exampleEvents
-    setEvents(dashboardEvents)
-  }, [window.calendarEvents])
-
-  // Filtrer les événements pour le jour sélectionné
-  const eventsForSelectedDate = events.filter((event) => event.date === format(date, "yyyy-MM-dd"))
-
-  // Fonction pour ajouter un événement directement quand on clique sur le calendrier
-  const handleCalendarClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onClick && onClick()
-  }
-
-  // Fonctions pour naviguer entre les mois
-  const goToPreviousMonth = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentMonth(subMonths(currentMonth, 1))
-  }
-
-  const goToNextMonth = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentMonth(addMonths(currentMonth, 1))
-  }
-
-  return (
-    <motion.div
-      onClick={handleCalendarClick}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`cursor-pointer bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-slate-100 hover:border-purple-200 transition-all dark:bg-slate-800 dark:border-slate-700 flex flex-col h-full ${className || ""}`}
-    >
-      <h3 className="text-xl font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-3">
-        <CalendarIcon className="w-7 h-7 text-purple-600" />
-        Calendrier
-      </h3>
-
-      {/* Calendrier moderne avec navigation entre les mois */}
-      <div className="flex flex-col gap-4 flex-1">
-        {/* Navigation du mois */}
-        <div className="flex justify-between items-center mb-2">
-          <button
-            onClick={goToPreviousMonth}
-            className="p-2 rounded-full hover:bg-purple-100 dark:hover:bg-purple-800/30 flex items-center justify-center"
-            aria-label="Mois précédent"
-          >
-            <ChevronLeftIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          </button>
-          <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            {format(currentMonth, "MMMM yyyy", { locale: fr })}
-          </h4>
-          <button
-            onClick={goToNextMonth}
-            className="p-2 rounded-full hover:bg-purple-100 dark:hover:bg-purple-800/30 flex items-center justify-center"
-            aria-label="Mois suivant"
-          >
-            <ChevronRightIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          </button>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md overflow-hidden border border-slate-200 dark:border-slate-700 flex-grow">
-          <CustomCalendar
-            currentMonth={currentMonth}
-            selectedDate={date}
-            onDateSelect={(newDate) => {
-              setDate(newDate)
-              // Si on change de mois en sélectionnant une date, mettre à jour currentMonth
-              if (!isSameMonth(newDate, currentMonth)) {
-                setCurrentMonth(newDate)
-              }
-              // Mettre à jour la date dans le formulaire global
-              if (window.calendarEvents) {
-                const formattedDate = format(newDate, "yyyy-MM-dd")
-                window.selectedCalendarDate = formattedDate
-              }
-            }}
-            events={events}
-          />
-        </div>
-
-        {/* Événements du jour sélectionné - limité à 2 avec indication s'il y en a plus */}
-        
-<div className="mt-auto">
-  <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2 text-sm">
-    {format(date, "EEEE d MMMM", { locale: fr })}
-  </h4>
-
-  <div className="space-y-2 max-h-[90px] overflow-y-auto pr-1 custom-scrollbar">
-    {eventsForSelectedDate.length > 0 ? (
-      eventsForSelectedDate.map((event) => (
-        <div key={event.id} className="bg-purple-50 dark:bg-purple-900/30 p-2 rounded-lg">
-          <div className="flex justify-between items-start">
-            <h5 className="font-medium text-slate-800 dark:text-white text-sm">{event.title}</h5>
-            <Badge
-              variant="outline"
-              className="bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100 text-xs"
-            >
-              {event.time}
-            </Badge>
-          </div>
-        </div>
-      ))
-    ) : (
-      <p className="text-xs text-slate-500 dark:text-slate-400 italic">Aucun événement prévu</p>
-    )}
-  </div>
-</div>
+          ))
+        ) : (
+          <p className="text-center text-slate-500 dark:text-slate-400">Aucun projet prioritaire trouvé</p>
+        )}
       </div>
     </motion.div>
   )
@@ -1087,7 +664,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ onClick, className }) =
 )
 
 // Composant ProjectSection (affiche tous les projets)
-const ProjectSection: React.FC<ProjectSectionProps> = ({ onProjectClick, summary = false }) => {
+const ProjectSection: React.FC<ProjectSectionProps> = ({ onProjectClick, summary = false, projects }) => {
   const list = summary ? projects.slice(0, 3) : projects
   return (
     <motion.div
@@ -1100,58 +677,50 @@ const ProjectSection: React.FC<ProjectSectionProps> = ({ onProjectClick, summary
         Projets
       </h3>
       <div className="space-y-4">
-        {list.map((project, index) => (
-          <motion.div
-            key={project.name}
-            onClick={() => onProjectClick(project)}
-            className="cursor-pointer flex items-center gap-4 p-3 hover:bg-purple-50/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <div className="p-2 rounded-full" style={{ background: project.color }}>
-              <BriefcaseIcon className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-slate-800 dark:text-white">{project.name}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Deadline: {project.deadline}</p>
-            </div>
-            <div className="w-16">
-              <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${project.progress}%`,
-                    background: project.color,
-                  }}
-                />
+        {list.length > 0 ? (
+          list.map((project, index) => (
+            <motion.div
+              key={project.id}
+              onClick={() => onProjectClick(project)}
+              className="cursor-pointer flex items-center gap-4 p-3 hover:bg-purple-50/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="p-2 rounded-full" style={{ background: project.color }}>
+                <BriefcaseIcon className="w-6 h-6 text-white" />
               </div>
-              <p className="text-xs text-right mt-1 text-slate-500">{project.progress}%</p>
-            </div>
-          </motion.div>
-        ))}
+              <div className="flex-1">
+                <p className="font-medium text-slate-800 dark:text-white">{project.name}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Deadline: {project.deadline}</p>
+              </div>
+              <div className="w-16">
+                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${project.progress}%`,
+                      background: project.color,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-right mt-1 text-slate-500">{project.progress}%</p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <p className="text-center text-slate-500 dark:text-slate-400">Aucun projet trouvé</p>
+        )}
       </div>
     </motion.div>
   )
 }
 
 // Modifier le composant TeamGroups pour limiter l'affichage à 3 équipes et ajouter une scrollbar
-const TeamGroups: React.FC<{ onTeamClick: (projectName: string, members: TeamMember[]) => void }> = ({
-  onTeamClick,
-}) => {
-  // Organiser les membres par projet
-  const teamGroups: TeamGroup[] = projects
-    .map((project) => {
-      const projectMembers = teamMembers.filter((member) => project.team?.includes(member.email))
-
-      return {
-        projectName: project.name,
-        projectColor: project.color,
-        members: projectMembers,
-      }
-    })
-    .filter((group) => group.members.length > 0)
-
+const TeamGroups: React.FC<{
+  onTeamClick: (projectName: string, members: TeamMember[]) => void
+  teamGroups: TeamGroup[]
+}> = ({ onTeamClick, teamGroups }) => {
   return (
     <motion.div
       className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-slate-100 dark:bg-slate-800 dark:border-slate-700"
@@ -1163,30 +732,34 @@ const TeamGroups: React.FC<{ onTeamClick: (projectName: string, members: TeamMem
         Équipes par Projet
       </h3>
       <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-        {teamGroups.map((group, index) => (
-          <motion.div
-            key={group.projectName}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 rounded-lg border-l-4 hover:bg-purple-50/50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
-            style={{ borderColor: group.projectColor }}
-            onClick={() => onTeamClick(group.projectName, group.members)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium text-slate-800 dark:text-white">{group.projectName}</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{group.members.length} membres</p>
+        {teamGroups.length > 0 ? (
+          teamGroups.map((group, index) => (
+            <motion.div
+              key={group.projectName}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="p-4 rounded-lg border-l-4 hover:bg-purple-50/50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
+              style={{ borderColor: group.projectColor }}
+              onClick={() => onTeamClick(group.projectName, group.members)}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-slate-800 dark:text-white">{group.projectName}</h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">{group.members.length} membres</p>
+                </div>
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                  style={{ background: group.projectColor }}
+                >
+                  {group.members.length}
+                </div>
               </div>
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
-                style={{ background: group.projectColor }}
-              >
-                {group.members.length}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        ) : (
+          <p className="text-center text-slate-500 dark:text-slate-400">Aucune équipe trouvée</p>
+        )}
       </div>
     </motion.div>
   )
@@ -1194,7 +767,7 @@ const TeamGroups: React.FC<{ onTeamClick: (projectName: string, members: TeamMem
 
 // TaskDetails Component
 const TaskDetails: React.FC<{ task: Task; onClose: () => void }> = ({ task, onClose }) => (
-  <Modal title={task.name} onClose={onClose}>
+  <Modal title={task.title} onClose={onClose}>
     <div className="space-y-4">
       <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
         <h4 className="font-medium text-slate-800 dark:text-white">Détails</h4>
@@ -1210,6 +783,12 @@ const TaskDetails: React.FC<{ task: Task; onClose: () => void }> = ({ task, onCl
           <p className="text-sm text-slate-600 dark:text-slate-300">{task.deadline}</p>
         </div>
       </div>
+      {task.project_name && (
+        <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+          <h4 className="font-medium text-slate-800 dark:text-white">Projet</h4>
+          <p className="text-sm text-slate-600 dark:text-slate-300">{task.project_name}</p>
+        </div>
+      )}
       <Button onClick={onClose} className="bg-purple-600 hover:bg-purple-700 text-white">
         Fermer
       </Button>
@@ -1269,13 +848,13 @@ const MemberDetails: React.FC<{ member: TeamMember; onClose: () => void }> = ({ 
       <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
         <h4 className="font-medium text-slate-800 dark:text-white">Informations de contact</h4>
         <p className="text-sm text-slate-600 dark:text-slate-300">Email: {member.email}</p>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Téléphone: {member.phone}</p>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Adresse: {member.address}</p>
+        {member.phone && <p className="text-sm text-slate-600 dark:text-slate-300">Téléphone: {member.phone}</p>}
+        {member.address && <p className="text-sm text-slate-600 dark:text-slate-300">Adresse: {member.address}</p>}
       </div>
       <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
         <h4 className="font-medium text-slate-800 dark:text-white">Informations supplémentaires</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Projet: {member.project}</p>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Poste: {member.post}</p>
+        {member.project && <p className="text-sm text-slate-600 dark:text-slate-300">Projet: {member.project}</p>}
+        {member.post && <p className="text-sm text-slate-600 dark:text-slate-300">Poste: {member.post}</p>}
       </div>
       <Button onClick={onClose} className="bg-purple-600 hover:bg-purple-700 text-white">
         Fermer
@@ -1367,74 +946,150 @@ export default function GlobalDashboard() {
   const [selectedInvitees, setSelectedInvitees] = useState<string[]>([])
   const [iaDescription, setIaDescription] = useState<string>("")
 
+  // Get the current user ID from localStorage
+  const [clerkUserId, setClerkUserId] = useState<string | null>(null)
+
   useEffect(() => {
-    setIsMounted(true)
-    // Rendre les événements disponibles globalement pour le widget
-    window.calendarEvents = calendarEvents
-
-    // Vérifier si une date a été sélectionnée dans le widget
-    if (window.selectedCalendarDate && selectedModal === "calendrier") {
-      setNewEvent({
-        ...newEvent,
-        date: window.selectedCalendarDate,
-      })
+    const userId = localStorage.getItem("currentUserId")
+    if (userId) {
+      setClerkUserId(userId)
     }
-  }, [calendarEvents, selectedModal])
+  }, [])
 
-  if (!isMounted) return null
+  // Fetch dashboard data
+  const {
+    data: dashboardData,
+    isLoading: isLoadingDashboard,
+    error: dashboardError,
+  } = useGetDashboardDataQuery(undefined, { skip: !clerkUserId })
 
-  // Fonction pour ajouter un événement dans le calendrier
-  const addCalendarEvent = () => {
-    if (newEvent.date && newEvent.title) {
-      selectedInvitees.forEach((email) => {
-        console.log(`Envoi d'un email à ${email} pour l'événement "${newEvent.title}"`)
+  // Define project colors
+  const projectColors = [
+    "#EC4899",
+    "#8B5CF6",
+    "#6366F1",
+    "#10B981",
+    "#F59E0B",
+    "#3B82F6",
+    "#EF4444",
+    "#14B8A6",
+    "#8B5CF6",
+    "#F97316",
+  ]
+
+  // Transform backend data to match UI components
+  const [allProjects, setAllProjects] = useState<Project[]>([])
+  const [activeProjects, setActiveProjects] = useState<Project[]>([])
+  const [completedProjects, setCompletedProjects] = useState<Project[]>([])
+  const [priorityProjects, setPriorityProjects] = useState<Project[]>([])
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([])
+  const [ongoingTasks, setOngoingTasks] = useState<Task[]>([])
+  const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([])
+
+  useEffect(() => {
+    if (dashboardData) {
+      // Transform projects data
+      const transformedActiveProjects = dashboardData.active_projects.map((project: any, index: number) => ({
+        id: project.id,
+        name: project.name,
+        progress: project.progress,
+        deadline: project.end_date ? format(new Date(project.end_date), "dd/MM/yy") : "N/A",
+        color: projectColors[index % projectColors.length],
+        details: project.description || "Aucune description",
+        team: project.team || [],
+        end_date: project.end_date,
+        description: project.description,
+      }))
+
+      const transformedCompletedProjects = dashboardData.completed_projects.map((project: any, index: number) => ({
+        id: project.id,
+        name: project.name,
+        progress: project.progress,
+        deadline: project.end_date ? format(new Date(project.end_date), "dd/MM/yy") : "N/A",
+        color: projectColors[(index + transformedActiveProjects.length) % projectColors.length],
+        details: project.description || "Aucune description",
+        team: project.team || [],
+        end_date: project.end_date,
+        description: project.description,
+      }))
+
+      const transformedPriorityProjects = dashboardData.priority_projects.map((project: any, index: number) => ({
+        id: project.id,
+        name: project.name,
+        progress: project.progress,
+        deadline: project.end_date ? format(new Date(project.end_date), "dd/MM/yy") : "N/A",
+        color: projectColors[index % projectColors.length],
+        details: project.description || "Aucune description",
+        team: project.team || [],
+        end_date: project.end_date,
+        description: project.description,
+      }))
+
+      // Transform tasks data
+      const transformedCompletedTasks = dashboardData.completed_tasks.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        progress: "100%",
+        details: task.description || "Aucune description",
+        assignedTo: task.assignee ? task.assignee.name : "Non assigné",
+        assignee: task.assignee,
+        deadline: task.due_date ? format(new Date(task.due_date), "dd/MM/yy") : "N/A",
+        priority: "medium",
+        description: task.description || "",
+        due_date: task.due_date || "",
+        assignee_id: task.assignee_id,
+        project_name: task.project_name,
+      }))
+
+      const transformedOngoingTasks = dashboardData.ongoing_tasks.map((task: any) => {
+        let progress = "25%"
+        if (task.status === "en_cours") progress = "50%"
+        if (task.status === "en_révision") progress = "75%"
+
+        return {
+          id: task.id,
+          title: task.title,
+          progress: progress,
+          details: task.description || "Aucune description",
+          assignedTo: task.assignee ? task.assignee.name : "Non assigné",
+          assignee: task.assignee,
+          deadline: task.due_date ? format(new Date(task.due_date), "dd/MM/yy") : "N/A",
+          priority: "medium",
+          description: task.description || "",
+          due_date: task.due_date || "",
+          assignee_id: task.assignee_id,
+          project_name: task.project_name,
+        }
       })
 
-      const newEventWithId: CalendarEvent = {
-        ...newEvent,
-        id: Date.now().toString(),
-        invitees: selectedInvitees,
-      }
+      // Transform team data
+      const transformedTeamGroups = dashboardData.teams_by_project
+        .map((team: any, index: number) => ({
+          projectName: team.project_name,
+          projectColor: projectColors[index % projectColors.length],
+          members: team.members.map((member: any) => ({
+            id: member.id,
+            name: member.name,
+            role: member.pivot.role,
+            avatar:
+              member.avatar ||
+              `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "men" : "women"}/${Math.floor(Math.random() * 10)}.jpg`,
+            status: "active",
+            email: member.email,
+          })),
+        }))
+        .filter((group: any) => group.members.length > 0)
 
-      // Mettre à jour les événements du calendrier
-      const updatedEvents = [...calendarEvents, newEventWithId]
-      setCalendarEvents(updatedEvents)
-      // Rendre les événements disponibles globalement
-      window.calendarEvents = updatedEvents
-
-      setNewEvent({
-        date: format(selectedDate, "yyyy-MM-dd"),
-        title: "",
-        notes: "",
-        time: format(new Date(), "HH:mm"),
-        invitees: [],
-      })
-      setSelectedInvitees([])
-      setIaDescription("")
+      // Set state with transformed data
+      setAllProjects([...transformedActiveProjects, ...transformedCompletedProjects])
+      setActiveProjects(transformedActiveProjects)
+      setCompletedProjects(transformedCompletedProjects)
+      setPriorityProjects(transformedPriorityProjects)
+      setCompletedTasks(transformedCompletedTasks)
+      setOngoingTasks(transformedOngoingTasks)
+      setTeamGroups(transformedTeamGroups)
     }
-  }
-
-  // Fonction simulant l'appel à l'IA pour générer une description détaillée
-  const generateIaDescription = () => {
-    const description = `Description détaillée générée automatiquement pour l'événement "${newEvent.title}" prévu le ${newEvent.date} à ${newEvent.time}.`
-    setIaDescription(description)
-    setNewEvent({ ...newEvent, notes: description })
-  }
-
-  // Fonctions pour naviguer entre les mois
-  const goToPreviousMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1))
-  }
-
-  const goToNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1))
-  }
-
-  // Fonction pour gérer le clic sur une idée d'innovation
-  const handleInnovationClick = (ideaTitle: string) => {
-    setSelectedInnovation(ideaTitle)
-    setSelectedModal("innovation_details")
-  }
+  }, [dashboardData])
 
   return (
     <>
@@ -1442,7 +1097,6 @@ export default function GlobalDashboard() {
       <section
         className="p-6 md:p-8 bg-gradient-to-br from-purple-50/50 to-blue-50/50 dark:from-slate-900 dark:to-slate-800 min-h-screen"
         onClick={(e) => {
-          // Only close modals if clicking directly on the section (not on children)
           if (e.target === e.currentTarget && selectedModal) {
             setSelectedModal(null)
           }
@@ -1473,7 +1127,7 @@ export default function GlobalDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <StatBlock
             title="Projets Actifs"
-            value="24"
+            value={activeProjects.length.toString()}
             change="+5%"
             icon={<BriefcaseIcon />}
             onClick={() => setSelectedModal("projets_actifs")}
@@ -1487,7 +1141,7 @@ export default function GlobalDashboard() {
           />
           <StatBlock
             title="Projets"
-            value={projects.length.toString()}
+            value={allProjects.length.toString()}
             change="+2"
             icon={<UsersIcon />}
             onClick={() => setSelectedModal("projets_section")}
@@ -1501,14 +1155,14 @@ export default function GlobalDashboard() {
           />
           <StatBlock
             title="Projets terminés"
-            value={finishedProjects.length.toString()}
+            value={completedProjects.length.toString()}
             change="+4"
             icon={<CheckCircleIcon />}
             onClick={() => setSelectedModal("projets_termines")}
           />
         </div>
 
-        {/* Modifier la section où les widgets sont affichés */}
+        {/* Widgets */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <motion.div
@@ -1550,16 +1204,19 @@ export default function GlobalDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[400px]">
               <RecentActivity onClick={() => setSelectedModal("activite_recente")} />
-              <CalendarWidget onClick={() => setSelectedModal("calendrier")} />
             </div>
           </div>
 
           <div className="space-y-8">
             <div className="cursor-pointer" onClick={() => setSelectedModal("projets_prioritaires")}>
-              <ProjectTimeline onClick={() => setSelectedModal("projets_prioritaires")} />
+              <ProjectTimeline
+                onClick={() => setSelectedModal("projets_prioritaires")}
+                priorityProjects={priorityProjects}
+              />
             </div>
             <div className="cursor-pointer" onClick={() => setSelectedModal("equipes")}>
               <TeamGroups
+                teamGroups={teamGroups}
                 onTeamClick={(projectName, members) => {
                   setSelectedTeamProject(projectName)
                   setSelectedTeamMembers(members)
@@ -1575,207 +1232,29 @@ export default function GlobalDashboard() {
         {selectedModal === "projets_actifs" && (
           <Modal title="Détails des Projets Actifs" onClose={() => setSelectedModal(null)}>
             <div className="space-y-4">
-              {projects.map((project) => (
-                <div key={project.name} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-bold text-slate-800 dark:text-white">{project.name}</h4>
-                    <Badge variant="outline">{`${project.progress}%`}</Badge>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">Deadline: {project.deadline}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{project.details}</p>
-                  <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${project.progress}%`,
-                        background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Modal>
-        )}
-
-        {selectedModal === "calendrier" && (
-          <Modal title="Calendrier détaillé" onClose={() => setSelectedModal(null)}>
-            <div className="flex flex-col lg:flex-row gap-6">
-              {/* Partie gauche : Calendrier */}
-              <div className="w-full lg:w-1/2">
-                {/* Navigation du mois */}
-                <div className="flex justify-between items-center mb-4">
-                  <button
-                    onClick={goToPreviousMonth}
-                    className="p-2 rounded-full hover:bg-purple-100 dark:hover:bg-purple-800/30 flex items-center justify-center"
-                    aria-label="Mois précédent"
-                  >
-                    <ChevronLeftIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </button>
-                  <h3 className="text-lg font-medium text-slate-800 dark:text-white">
-                    {format(currentMonth, "MMMM yyyy", { locale: fr })}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={goToNextMonth}
-                      className="p-2 rounded-full hover:bg-purple-100 dark:hover:bg-purple-800/30 flex items-center justify-center"
-                      aria-label="Mois suivant"
-                    >
-                      <ChevronRightIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </button>
-                    
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden border border-slate-200 dark:border-slate-700 p-4">
-                  <CustomCalendar
-                    currentMonth={currentMonth}
-                    selectedDate={selectedDate}
-                    onDateSelect={(newDate) => {
-                      setSelectedDate(newDate)
-                      // Mettre à jour la date dans le formulaire
-                      setNewEvent({
-                        ...newEvent,
-                        date: format(newDate, "yyyy-MM-dd"),
-                      })
-                    }}
-                    events={calendarEvents}
-                  />
-                </div>
-
-                {/* Liste des événements pour la date sélectionnée */}
-                <div className="mt-4">
-                  <h3 className="text-md font-medium text-slate-800 dark:text-white mb-2">
-                    Événements du {format(selectedDate, "d MMMM yyyy", { locale: fr })}
-                  </h3>
-
-                  <div className="space-y-2 max-h-[130px] min-h-[90px] overflow-y-auto overflow-x-hidden pr-2 custom-scrollbar">
-                    {calendarEvents
-                      .filter((event) => event.date === format(selectedDate, "yyyy-MM-dd"))
-                      .map((event) => (
-                        <div
-                          key={event.id}
-                          className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-lg border-l-4 border-purple-500"
-                        >
-                          <div className="flex justify-between items-center mb-1">
-                            <h4 className="font-medium text-slate-800 dark:text-white text-sm">{event.title}</h4>
-                            <Badge className="text-xs">{event.time}</Badge>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-300">{event.notes}</p>
-                          {event.invitees.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {event.invitees.map((invitee) => (
-                                <Badge key={invitee} variant="outline" className="text-xs badge-email dark:text-white">
-                                  {invitee}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-
-                    {calendarEvents.filter((event) => event.date === format(selectedDate, "yyyy-MM-dd")).length ===
-                      0 && (
-                      <p className="text-sm text-slate-500 dark:text-slate-400 italic">Aucun événement programmé</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Partie droite : Ajout d'événement */}
-              <div className="w-full lg:w-1/2 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md">
-                <h3 className="text-md font-medium text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-                  <PlusCircleIcon className="w-5 h-5 text-purple-500" />
-                  Ajouter un événement
-                </h3>
-
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={newEvent.date}
-                        onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                        className="w-full p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                        ref={dateInputRef}
-                      />
+              {activeProjects.length > 0 ? (
+                activeProjects.map((project) => (
+                  <div key={project.id} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-slate-800 dark:text-white">{project.name}</h4>
+                      <Badge variant="outline">{`${project.progress}%`}</Badge>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Heure</label>
-                      <input
-                        type="time"
-                        value={newEvent.time}
-                        onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
-                        className="w-full p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">Deadline: {project.deadline}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{project.details}</p>
+                    <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${project.progress}%`,
+                          background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
+                        }}
                       />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Titre</label>
-                    <input
-                      type="text"
-                      value={newEvent.title}
-                      onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                      placeholder="Titre de l'événement"
-                      className="w-full p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Description
-                    </label>
-                    <div className="flex gap-2">
-                      <textarea
-                        value={newEvent.notes}
-                        onChange={(e) => setNewEvent({ ...newEvent, notes: e.target.value })}
-                        placeholder="Description de l'événement"
-                        rows={2}
-                        className="w-full p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      />
-                      <Button
-                        onClick={generateIaDescription}
-                        variant="outline"
-                        size="sm"
-                        className="whitespace-nowrap text-xs dark:text-white dark:border-slate-600 dark:hover:bg-slate-700"
-                      >
-                        Générer IA
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Invités</label>
-                    <select
-                      multiple
-                      value={selectedInvitees}
-                      onChange={(e) => {
-                        const options = Array.from(e.target.selectedOptions, (option) => option.value)
-                        setSelectedInvitees(options)
-                      }}
-                      className="w-full p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500 h-20 custom-scrollbar"
-                    >
-                      {teamMembers.map((member) => (
-                        <option key={member.email} value={member.email}>
-                          {member.name} ({member.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <Button
-                    onClick={addCalendarEvent}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-sm"
-                    disabled={!newEvent.title}
-                  >
-                    <PlusCircleIcon className="w-4 h-4 mr-2" />
-                    Ajouter l'événement
-                  </Button>
-                </div>
-              </div>
+                ))
+              ) : (
+                <p className="text-center text-slate-500 dark:text-slate-400">Aucun projet actif trouvé</p>
+              )}
             </div>
           </Modal>
         )}
@@ -1783,31 +1262,44 @@ export default function GlobalDashboard() {
         {selectedModal === "taches_completees" && (
           <Modal title="Tâches Complétées" onClose={() => setSelectedModal(null)}>
             <div className="space-y-4">
-              {completedTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                  onClick={() => {
-                    setSelectedTask(task)
-                    setSelectedModal("tache_details")
-                  }}
-                >
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-slate-800 dark:text-white">{task.name}</h4>
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                    >
-                      {task.progress}
-                    </Badge>
+              {completedTasks.length > 0 ? (
+                completedTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                    onClick={() => {
+                      setSelectedTask(task)
+                      setSelectedModal("tache_details")
+                    }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-bold text-slate-800 dark:text-white">{task.title}</h4>
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                      >
+                        {task.progress}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+                      {task.details.substring(0, 100)}...
+                    </p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Assigné à: {task.assignedTo}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Deadline: {task.deadline}</span>
+                    </div>
+                    {task.project_name && (
+                      <div className="mt-2">
+                        <span className="text-xs text-purple-600 dark:text-purple-400">
+                          Projet: {task.project_name}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{task.details.substring(0, 100)}...</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Assigné à: {task.assignedTo}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Deadline: {task.deadline}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center text-slate-500 dark:text-slate-400">Aucune tâche complétée trouvée</p>
+              )}
             </div>
           </Modal>
         )}
@@ -1825,29 +1317,42 @@ export default function GlobalDashboard() {
         {selectedModal === "taches_en_cours" && (
           <Modal title="Tâches en cours" onClose={() => setSelectedModal(null)}>
             <div className="space-y-4">
-              {ongoingTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
-                  onClick={() => {
-                    setSelectedTask(task)
-                    setSelectedModal("tache_details")
-                  }}
-                >
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-slate-800 dark:text-white">{task.name}</h4>
-                    <Badge variant="outline">{task.progress}</Badge>
+              {ongoingTasks.length > 0 ? (
+                ongoingTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                    onClick={() => {
+                      setSelectedTask(task)
+                      setSelectedModal("tache_details")
+                    }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-bold text-slate-800 dark:text-white">{task.title}</h4>
+                      <Badge variant="outline">{task.progress}</Badge>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+                      {task.details.substring(0, 100)}...
+                    </p>
+                    <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: task.progress }} />
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Assigné à: {task.assignedTo}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Deadline: {task.deadline}</span>
+                    </div>
+                    {task.project_name && (
+                      <div className="mt-2">
+                        <span className="text-xs text-purple-600 dark:text-purple-400">
+                          Projet: {task.project_name}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{task.details.substring(0, 100)}...</p>
-                  <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: task.progress }} />
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Assigné à: {task.assignedTo}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Deadline: {task.deadline}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center text-slate-500 dark:text-slate-400">Aucune tâche en cours trouvée</p>
+              )}
             </div>
           </Modal>
         )}
@@ -1855,24 +1360,30 @@ export default function GlobalDashboard() {
         {selectedModal === "projets_termines" && (
           <Modal title="Projets terminés" onClose={() => setSelectedModal(null)}>
             <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-              {finishedProjects.map((project) => (
-                <div key={project.name} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold text-slate-800 dark:text-white">{project.name}</h4>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">Terminé</Badge>
+              {completedProjects.length > 0 ? (
+                completedProjects.map((project) => (
+                  <div key={project.id} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-bold text-slate-800 dark:text-white">{project.name}</h4>
+                      <Badge className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                        Terminé
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{project.details}</p>
+                    <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${project.progress}%`,
+                          background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{project.details}</p>
-                  <div className="mt-2 w-full bg-slate-200 dark:bg-slate-600 rounded-full h-2">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${project.progress}%`,
-                        background: `linear-gradient(90deg, ${project.color} 0%, ${colors.secondary} 100%)`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-center text-slate-500 dark:text-slate-400">Aucun projet terminé trouvé</p>
+              )}
             </div>
           </Modal>
         )}
@@ -1880,11 +1391,10 @@ export default function GlobalDashboard() {
         {selectedModal === "projets_prioritaires" && (
           <Modal title="Projets Prioritaires" onClose={() => setSelectedModal(null)}>
             <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-              {projects
-                .filter((p) => p.progress >= 75)
-                .map((project) => (
+              {priorityProjects.length > 0 ? (
+                priorityProjects.map((project) => (
                   <div
-                    key={project.name}
+                    key={project.id}
                     className="p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 border-l-4"
                     style={{ borderColor: project.color }}
                   >
@@ -1904,7 +1414,10 @@ export default function GlobalDashboard() {
                       />
                     </div>
                   </div>
-                ))}
+                ))
+              ) : (
+                <p className="text-center text-slate-500 dark:text-slate-400">Aucun projet prioritaire trouvé</p>
+              )}
             </div>
           </Modal>
         )}
@@ -1934,6 +1447,7 @@ export default function GlobalDashboard() {
         {selectedModal === "projets_section" && (
           <Modal title="Tous les Projets" onClose={() => setSelectedModal(null)}>
             <ProjectSection
+              projects={allProjects}
               onProjectClick={(project) => {
                 setSelectedProject(project)
                 setSelectedModal("projet_details")
@@ -1995,6 +1509,7 @@ export default function GlobalDashboard() {
         {selectedModal === "equipes" && (
           <Modal title="Équipes par Projet" onClose={() => setSelectedModal(null)}>
             <TeamGroups
+              teamGroups={teamGroups}
               onTeamClick={(projectName, members) => {
                 setSelectedTeamProject(projectName)
                 setSelectedTeamMembers(members)
@@ -2030,16 +1545,6 @@ export default function GlobalDashboard() {
               } else {
                 setSelectedModal("equipes")
               }
-            }}
-          />
-        )}
-
-        {selectedModal === "innovation_details" && selectedInnovation && (
-          <InnovationDetails
-            innovation={innovationDetails[selectedInnovation]}
-            onClose={() => {
-              setSelectedInnovation(null)
-              setSelectedModal(null)
             }}
           />
         )}

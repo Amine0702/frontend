@@ -20,204 +20,61 @@ import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
-import { Body, Container, Head, Heading, Html, Preview, Section, Text } from "@react-email/components"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/components/ui/use-toast"
+import { useGetUserProjectsQuery, useGetProjectQuery, useInviteUsersMutation } from "@/app/state/api"
 
-// Palette de couleurs
-const primaryColor = "#b03ff3" // mauve dominant
+// Types
+type MemberRole = "manager" | "member" | "observer"
 
-// --- Types et données initiales
-type BoardPermission = "read" | "write" | "admin"
-type MemberRole = "member" | "manager"
-
-// Type pour un projet avec sa kanban
+// Type for a project with its kanban
 type Project = {
-  id: string
+  id: number
   name: string
-  startDate: Date
-  manager: string
-  kanban: {
-    name: string
-    lastModified: Date
-  }
+  start_date: string
+  end_date: string
+  description?: string
+  clerk_user_id: string
+  created_at?: string
+  updated_at?: string
 }
 
 type Member = {
-  id: string
+  id: number
   name: string
   email: string
   avatar?: string
-  permission: BoardPermission
-  role: MemberRole
+  pivot: {
+    project_id: number
+    team_member_id: number
+    role: MemberRole
+  }
 }
 
-// Données simulées pour les projets
-const initialProjects: Project[] = [
-  {
-    id: "alpha",
-    name: "Projet Alpha",
-    startDate: new Date("2024-01-10"),
-    manager: "Alice Dupont",
-    kanban: {
-      name: "Kanban Alpha",
-      lastModified: new Date("2024-03-15"),
-    },
-  },
-  {
-    id: "beta",
-    name: "Projet Beta",
-    startDate: new Date("2024-02-15"),
-    manager: "Bob Martin",
-    kanban: {
-      name: "Kanban Beta",
-      lastModified: new Date("2024-03-12"),
-    },
-  },
-  {
-    id: "gamma",
-    name: "Projet Gamma",
-    startDate: new Date("2024-03-01"),
-    manager: "Claire Legrand",
-    kanban: {
-      name: "Kanban Gamma",
-      lastModified: new Date("2024-03-10"),
-    },
-  },
-]
-
-// Données simulées pour les membres
-const initialMembers: Member[] = [
-  {
-    id: "1",
-    name: "Sophie Martin",
-    email: "sophie.martin@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    permission: "admin",
-    role: "manager",
-  },
-  {
-    id: "2",
-    name: "Thomas Dubois",
-    email: "thomas.dubois@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    permission: "write",
-    role: "manager",
-  },
-  {
-    id: "3",
-    name: "Emma Lefebvre",
-    email: "emma.lefebvre@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    permission: "read",
-    role: "member",
-  },
-  {
-    id: "4",
-    name: "Lucas Bernard",
-    email: "lucas.bernard@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    permission: "read",
-    role: "member",
-  },
-  {
-    id: "5",
-    name: "Chloé Moreau",
-    email: "chloe.moreau@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-    permission: "write",
-    role: "member",
-  },
-]
-
-// Template d'email pour les notifications
-interface EmailTemplateProps {
-  username: string
-  projectName: string
-  boardName: string
-  permission: string
-  taskDetails?: string
-}
-
-const EmailTemplate = ({ username, projectName, boardName, permission, taskDetails }: EmailTemplateProps) => {
-  const permissionLabel =
-    permission === "admin" ? "Administrateur" : permission === "write" ? "Modification" : "Lecture"
-
-  return (
-    <Html>
-      <Head />
-      <Preview>Nouvelle permission sur le tableau Kanban {boardName}</Preview>
-      <Body style={{ backgroundColor: "#f6f9fc", fontFamily: "Arial, sans-serif" }}>
-        <Container
-          style={{
-            padding: "40px 20px",
-            background: "#ffffff",
-            borderRadius: "8px",
-            maxWidth: "600px",
-            margin: "40px auto",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <Heading style={{ color: "#b03ff3", fontSize: "24px", textAlign: "center", margin: "30px 0" }}>
-            Mise à jour de vos permissions
-          </Heading>
-
-          <Section style={{ padding: "20px", backgroundColor: "#f9f4ff", borderRadius: "8px" }}>
-            <Text style={{ fontSize: "16px", color: "#333333" }}>Bonjour {username},</Text>
-            <Text style={{ fontSize: "16px", color: "#333333" }}>
-              Vos permissions ont été mises à jour sur le tableau Kanban du projet.
-            </Text>
-
-            <Text style={{ fontSize: "16px", color: "#333333", marginTop: "20px" }}>
-              <strong>Projet :</strong> {projectName}
-            </Text>
-            <Text style={{ fontSize: "16px", color: "#333333" }}>
-              <strong>Tableau Kanban :</strong> {boardName}
-            </Text>
-            <Text style={{ fontSize: "16px", color: "#333333" }}>
-              <strong>Nouvelle permission :</strong> {permissionLabel}
-            </Text>
-
-            {taskDetails && (
-              <Text style={{ fontSize: "16px", color: "#333333" }}>
-                <strong>Détails des tâches :</strong> {taskDetails}
-              </Text>
-            )}
-          </Section>
-
-          <Text style={{ fontSize: "14px", color: "#666666", textAlign: "center", marginTop: "30px" }}>
-            Ce message a été envoyé automatiquement. Merci de ne pas y répondre.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
-  )
-}
-
-// Modifier le composant PermissionBadge pour des textes plus clairs en mode sombre
-function PermissionBadge({ permission, className }: { permission: BoardPermission; className?: string }) {
+// Role Badge Component
+function RoleBadge({ role, className }: { role: MemberRole; className?: string }) {
   const config = {
-    admin: {
-      label: "Administrateur",
+    manager: {
+      label: "Manager",
       icon: Cog8ToothIcon,
       className:
         "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-white dark:border-pink-800/50",
     },
-    write: {
-      label: "Modification",
+    member: {
+      label: "Membre",
       icon: PencilIcon,
       className:
         "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-white dark:border-blue-800/50",
     },
-    read: {
-      label: "Lecture",
+    observer: {
+      label: "Observateur",
       icon: EyeIcon,
       className:
         "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-white dark:border-green-800/50",
     },
   }
 
-  const { label, icon: Icon, className: badgeClass } = config[permission]
+  const { label, icon: Icon, className: badgeClass } = config[role]
 
   return (
     <span
@@ -233,16 +90,16 @@ function PermissionBadge({ permission, className }: { permission: BoardPermissio
   )
 }
 
-// Modifier le sélecteur de permission pour des textes plus clairs
-function PermissionSelect({
-  currentPermission,
+// Role Select Component
+function RoleSelect({
+  currentRole,
   onChange,
   member,
   projectName,
   boardName,
 }: {
-  currentPermission: BoardPermission
-  onChange: (permission: BoardPermission) => void
+  currentRole: MemberRole
+  onChange: (role: MemberRole) => void
   member: Member
   projectName: string
   boardName: string
@@ -251,14 +108,14 @@ function PermissionSelect({
   const [sending, setSending] = useState(false)
   const { toast } = useToast()
 
-  const permissions: { value: BoardPermission; label: string }[] = [
-    { value: "read", label: "Lecture" },
-    { value: "write", label: "Modification" },
-    { value: "admin", label: "Administrateur" },
+  const roles: { value: MemberRole; label: string }[] = [
+    { value: "observer", label: "Observateur" },
+    { value: "member", label: "Membre" },
+    { value: "manager", label: "Manager" },
   ]
 
-  const handlePermissionChange = async (permission: BoardPermission) => {
-    if (permission === currentPermission) {
+  const handleRoleChange = async (role: MemberRole) => {
+    if (role === currentRole) {
       setOpen(false)
       return
     }
@@ -266,13 +123,10 @@ function PermissionSelect({
     setSending(true)
 
     try {
-      // Changer la permission
-      onChange(permission)
+      // Update the role
+      onChange(role)
 
-      // Simuler l'envoi d'un email (dans un environnement réel, cela appellerait une API)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // Afficher une notification de succès
+      // Show success notification
       toast({
         title: (
           <div className="flex items-center gap-2">
@@ -284,7 +138,7 @@ function PermissionSelect({
           <div className="mt-1">
             <p className="text-sm dark:text-white">
               Un email a été envoyé à <span className="font-semibold dark:text-white">{member.name}</span> pour
-              l'informer de sa nouvelle permission.
+              l'informer de son nouveau rôle.
             </p>
             <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded-md text-xs">
               <p className="dark:text-white">
@@ -294,8 +148,8 @@ function PermissionSelect({
                 <span className="font-semibold dark:text-white">Kanban:</span> {boardName}
               </p>
               <p className="dark:text-white">
-                <span className="font-semibold dark:text-white">Nouvelle permission:</span>{" "}
-                {permission === "admin" ? "Administrateur" : permission === "write" ? "Modification" : "Lecture"}
+                <span className="font-semibold dark:text-white">Nouveau rôle:</span>{" "}
+                {role === "manager" ? "Manager" : role === "member" ? "Membre" : "Observateur"}
               </p>
             </div>
           </div>
@@ -327,25 +181,23 @@ function PermissionSelect({
           className="w-full justify-center bg-white border-purple-100 hover:bg-purple-50/50 shadow-sm dark:bg-slate-800 dark:border-purple-900/50 dark:hover:bg-purple-900/30 dark:text-white"
           disabled={sending}
         >
-          <PermissionBadge permission={currentPermission} />
+          <RoleBadge role={currentRole} />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0 bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700">
         <Command className="bg-white dark:bg-slate-800">
           <CommandList>
-            <CommandEmpty className="dark:text-white">Aucune permission trouvée.</CommandEmpty>
+            <CommandEmpty className="dark:text-white">Aucun rôle trouvé.</CommandEmpty>
             <CommandGroup>
-              {permissions.map((permission) => (
+              {roles.map((role) => (
                 <CommandItem
-                  key={permission.value}
-                  value={permission.value}
-                  onSelect={() => handlePermissionChange(permission.value as BoardPermission)}
+                  key={role.value}
+                  value={role.value}
+                  onSelect={() => handleRoleChange(role.value as MemberRole)}
                   className="flex items-center gap-2 py-2 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 dark:aria-selected:bg-slate-700"
                 >
-                  <Check
-                    className={cn("h-4 w-4", currentPermission === permission.value ? "opacity-100" : "opacity-0")}
-                  />
-                  <PermissionBadge permission={permission.value as BoardPermission} />
+                  <Check className={cn("h-4 w-4", currentRole === role.value ? "opacity-100" : "opacity-0")} />
+                  <RoleBadge role={role.value as MemberRole} />
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -356,23 +208,23 @@ function PermissionSelect({
   )
 }
 
-// Modifier la carte de membre pour qu'elle ne soit pas transparente
+// Member Card Component
 function MemberCard({
   member,
   projectName,
   boardName,
-  onPermissionChange,
+  onRoleChange,
 }: {
   member: Member
   projectName: string
   boardName: string
-  onPermissionChange: (memberId: string, permission: BoardPermission) => void
+  onRoleChange: (memberId: number, role: MemberRole) => void
 }) {
-  const [permission, setPermission] = useState<BoardPermission>(member.permission)
+  const [role, setRole] = useState<MemberRole>(member.pivot.role)
 
-  const handlePermissionChange = (newPermission: BoardPermission) => {
-    setPermission(newPermission)
-    onPermissionChange(member.id, newPermission)
+  const handleRoleChange = (newRole: MemberRole) => {
+    setRole(newRole)
+    onRoleChange(member.id, newRole)
   }
 
   const getInitials = (name: string) => {
@@ -402,27 +254,31 @@ function MemberCard({
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-base truncate dark:text-slate-100">{member.name}</h3>
                 <Badge
-                  variant={member.role === "manager" ? "default" : "secondary"}
+                  variant={member.pivot.role === "manager" ? "default" : "secondary"}
                   className={`ml-1 ${
-                    member.role === "manager"
+                    member.pivot.role === "manager"
                       ? "text-white bg-gradient-to-r from-purple-500 to-indigo-500 dark:from-purple-700/90 dark:to-indigo-700/90"
                       : "bg-gradient-to-r from-slate-200 to-slate-300 text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300"
                   }`}
                 >
-                  {member.role === "manager" ? (
+                  {member.pivot.role === "manager" ? (
                     <UserCircle className="mr-1 h-3 w-3" />
                   ) : (
                     <Users className="mr-1 h-3 w-3" />
                   )}
-                  {member.role === "manager" ? "Manager" : "Membre"}
+                  {member.pivot.role === "manager"
+                    ? "Manager"
+                    : member.pivot.role === "member"
+                      ? "Membre"
+                      : "Observateur"}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground truncate dark:text-slate-400">{member.email}</p>
             </div>
             <div className="w-[160px]">
-              <PermissionSelect
-                currentPermission={permission}
-                onChange={handlePermissionChange}
+              <RoleSelect
+                currentRole={role}
+                onChange={handleRoleChange}
                 member={member}
                 projectName={projectName}
                 boardName={boardName}
@@ -435,12 +291,12 @@ function MemberCard({
   )
 }
 
-// Modifier les statistiques pour des textes plus clairs
-function PermissionStats({ members }: { members: Member[] }) {
-  const total = members.length
-  const admin = members.filter((m) => m.permission === "admin").length
-  const write = members.filter((m) => m.permission === "write").length
-  const read = members.filter((m) => m.permission === "read").length
+// Role Stats Component
+function RoleStats({ members }: { members: Member[] }) {
+  const total = members ? members.length : 0
+  const managers = members ? members.filter((m) => m.pivot.role === "manager").length : 0
+  const regularMembers = members ? members.filter((m) => m.pivot.role === "member").length : 0
+  const observers = members ? members.filter((m) => m.pivot.role === "observer").length : 0
 
   const stats = [
     {
@@ -452,24 +308,24 @@ function PermissionStats({ members }: { members: Member[] }) {
       textClass: "text-orange-800 dark:text-white",
     },
     {
-      title: "Administrateurs",
-      value: admin,
+      title: "Managers",
+      value: managers,
       icon: Cog8ToothIcon,
       bgClass: "bg-pink-50 border-pink-100 dark:bg-pink-900/20 dark:border-pink-800/30",
       iconClass: "text-pink-500 dark:text-white",
       textClass: "text-pink-800 dark:text-white",
     },
     {
-      title: "Modification",
-      value: write,
+      title: "Membres",
+      value: regularMembers,
       icon: PencilIcon,
       bgClass: "bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800/30",
       iconClass: "text-blue-500 dark:text-white",
       textClass: "text-blue-800 dark:text-white",
     },
     {
-      title: "Lecture",
-      value: read,
+      title: "Observateurs",
+      value: observers,
       icon: EyeIcon,
       bgClass: "bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-800/30",
       iconClass: "text-green-500 dark:text-white",
@@ -506,10 +362,28 @@ function PermissionStats({ members }: { members: Member[] }) {
   )
 }
 
-// Modifier le composant KanbanMembers pour des textes plus clairs
-function KanbanMembers({ projectName, boardName }: { projectName: string; boardName: string }) {
-  const [members, setMembers] = useState<Member[]>(initialMembers)
+// Kanban Members Component
+function KanbanMembers({ projectId, projectName }: { projectId: number; projectName: string }) {
+  const { data: projectData, isLoading, error } = useGetProjectQuery(projectId)
+  const [inviteUsers] = useInviteUsersMutation()
   const [searchQuery, setSearchQuery] = useState("")
+  const [members, setMembers] = useState<Member[]>([])
+
+  useEffect(() => {
+    if (projectData) {
+      // Add console log to debug the structure
+      console.log("Project data:", projectData)
+
+      // Check both possible locations for team members data
+      if (projectData.team_members && projectData.team_members.length > 0) {
+        setMembers(projectData.team_members)
+      } else if (projectData.teamMembers && projectData.teamMembers.length > 0) {
+        setMembers(projectData.teamMembers)
+      } else if (projectData.team && projectData.team.length > 0) {
+        setMembers(projectData.team)
+      }
+    }
+  }, [projectData])
 
   const filteredMembers = members.filter(
     (member) =>
@@ -517,9 +391,60 @@ function KanbanMembers({ projectName, boardName }: { projectName: string; boardN
       member.email.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handlePermissionChange = (memberId: string, permission: BoardPermission) => {
-    setMembers(members.map((member) => (member.id === memberId ? { ...member, permission } : member)))
+  const handleRoleChange = async (memberId: number, role: MemberRole) => {
+    try {
+      // Use the inviteUsers mutation to update the member's role
+      await inviteUsers({
+        id: projectId,
+        invitations: [
+          {
+            email: members.find((m) => m.id === memberId)?.email || "",
+            permission: role, // The backend expects 'permission' but it maps to role
+          },
+        ],
+      })
+
+      // Update local state
+      setMembers(
+        members.map((member) => (member.id === memberId ? { ...member, pivot: { ...member.pivot, role } } : member)),
+      )
+    } catch (error) {
+      console.error("Error updating member role:", error)
+    }
   }
+
+  if (isLoading) {
+    return (
+      <Card className="w-full border-0 shadow-xl bg-white dark:bg-slate-800">
+        <CardContent className="space-y-8 p-8">
+          <div className="flex justify-center items-center h-64">
+            <p className="text-lg text-gray-500 dark:text-gray-300">Chargement des données...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Add this debug section
+  console.log("Project data loaded:", projectData)
+  console.log("Team members:", members)
+
+  if (projectData && (!members || members.length === 0)) {
+    return (
+      <Card className="w-full border-0 shadow-xl bg-white dark:bg-slate-800">
+        <CardContent className="space-y-8 p-8">
+          <div className="flex flex-col justify-center items-center h-64">
+            <p className="text-lg text-red-500 dark:text-red-300 mb-4">Aucun membre d'équipe trouvé dans ce projet</p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              Structure de données reçue: {JSON.stringify(Object.keys(projectData))}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const boardName = projectData?.name ? `Kanban ${projectData.name}` : "Kanban"
 
   return (
     <Card className="w-full border-0 shadow-xl bg-white dark:bg-slate-800">
@@ -527,7 +452,7 @@ function KanbanMembers({ projectName, boardName }: { projectName: string; boardN
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-700 dark:from-purple-300 dark:to-indigo-300">
-              Permissions du Tableau Kanban
+              Gestion des Rôles du Projet
             </h2>
             <p className="text-base text-gray-600 dark:text-white">
               Gérez qui peut voir, modifier ou administrer le tableau "{boardName}" du projet "{projectName}".
@@ -545,8 +470,8 @@ function KanbanMembers({ projectName, boardName }: { projectName: string; boardN
           </div>
         </div>
 
-        {/* Statistiques des permissions */}
-        <PermissionStats members={members} />
+        {/* Statistiques des rôles */}
+        <RoleStats members={members} />
 
         <div className="space-y-6">
           <h3 className="text-lg font-semibold flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent dark:from-purple-300 dark:to-indigo-300">
@@ -568,7 +493,7 @@ function KanbanMembers({ projectName, boardName }: { projectName: string; boardN
                       member={member}
                       projectName={projectName}
                       boardName={boardName}
-                      onPermissionChange={handlePermissionChange}
+                      onRoleChange={handleRoleChange}
                     />
                   </motion.div>
                 ))
@@ -591,7 +516,7 @@ function KanbanMembers({ projectName, boardName }: { projectName: string; boardN
   )
 }
 
-// Composant Header affichant le titre, la date et un slogan inspirant
+// Header Component
 function Header({ currentDate }: { currentDate: Date }) {
   return (
     <div className="mb-8">
@@ -602,7 +527,7 @@ function Header({ currentDate }: { currentDate: Date }) {
         className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-400 flex items-center space-x-3"
       >
         <TableCellsIcon className="w-10 h-10 text-purple-600 dark:text-purple-400" />
-        <span>Dashboard – Gestion des Permissions Kanban</span>
+        <span>Dashboard – Gestion des Rôles Projet</span>
       </motion.h1>
       <p className="text-gray-600 dark:text-gray-300 mt-2">
         Bonjour, aujourd'hui c'est le{" "}
@@ -614,13 +539,13 @@ function Header({ currentDate }: { currentDate: Date }) {
         })}
       </p>
       <p className="mt-2 text-lg font-medium text-gray-700 dark:text-gray-300">
-        Permissions Intelligentes – Le Contrôle à Portée de Main
+        Gestion des Rôles – Le Contrôle à Portée de Main
       </p>
     </div>
   )
 }
 
-// Modifier le composant ProjectList pour des textes plus clairs
+// Project List Component
 function ProjectList({ projects, onSelect }: { projects: Project[]; onSelect: (project: Project) => void }) {
   return (
     <div className="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl space-y-8">
@@ -641,12 +566,14 @@ function ProjectList({ projects, onSelect }: { projects: Project[]; onSelect: (p
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{project.name}</h3>
             <p className="text-sm text-gray-600 dark:text-white">
-              Début : {project.startDate.toLocaleDateString("fr-FR")}
+              Début : {new Date(project.start_date).toLocaleDateString("fr-FR")}
             </p>
-            <p className="text-sm text-gray-600 dark:text-white">Chef de projet : {project.manager}</p>
-            <p className="text-sm text-gray-600 dark:text-white mt-2">
-              <span className="font-medium">Kanban :</span> {project.kanban.name}
+            <p className="text-sm text-gray-600 dark:text-white">
+              Fin : {new Date(project.end_date).toLocaleDateString("fr-FR")}
             </p>
+            {project.description && (
+              <p className="text-sm text-gray-600 dark:text-white mt-2 line-clamp-2">{project.description}</p>
+            )}
           </motion.div>
         ))}
       </div>
@@ -654,21 +581,55 @@ function ProjectList({ projects, onSelect }: { projects: Project[]; onSelect: (p
   )
 }
 
-// Modifier le composant principal pour améliorer la visibilité en mode sombre
+// Main Component
 export default function ProjectsPage() {
-  const [projects] = useState<Project[]>(initialProjects)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  // Get the current user ID from localStorage
+  const clerkUserId = typeof window !== "undefined" ? localStorage.getItem("currentUserId") : null
+
+  // Fetch projects for the current user
+  const { data: projectsData, isLoading, error } = useGetUserProjectsQuery(clerkUserId || "", { skip: !clerkUserId })
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentDate(new Date()), 60000)
     return () => clearInterval(timer)
   }, [])
 
+  // Combine manager and invited projects
+  const allProjects = projectsData
+    ? [...(projectsData.managerProjects || []), ...(projectsData.invitedProjects || [])]
+    : []
+
+  if (!clerkUserId) {
+    return (
+      <div className="min-h-screen p-6 bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+        <p className="text-lg text-gray-500 dark:text-gray-300">Veuillez vous connecter pour accéder à cette page.</p>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+        <p className="text-lg text-gray-500 dark:text-gray-300">Chargement des projets...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen p-6 bg-gray-50 dark:bg-slate-900 flex items-center justify-center">
+        <p className="text-lg text-red-500 dark:text-red-300">Erreur lors du chargement des projets</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen p-6 bg-gray-50 dark:bg-slate-900">
       {!selectedProject ? (
-        <ProjectList projects={projects} onSelect={(proj) => setSelectedProject(proj)} />
+        <ProjectList projects={allProjects} onSelect={(proj) => setSelectedProject(proj)} />
       ) : (
         <div className="space-y-6">
           <Button
@@ -695,19 +656,17 @@ export default function ProjectsPage() {
                 </span>
                 <div className="flex items-center gap-2">
                   <Separator className="w-10 h-0.5 bg-purple-200 dark:bg-purple-700" />
-                  <span className="text-lg font-medium text-purple-600 dark:text-white">
-                    {selectedProject.kanban.name}
-                  </span>
+                  <span className="text-lg font-medium text-purple-600 dark:text-white">Gestion des Rôles</span>
                 </div>
               </div>
             </motion.h1>
             <p className="text-gray-600 dark:text-white mt-2 ml-14">
-              Début : {selectedProject.startDate.toLocaleDateString("fr-FR")} • Chef de projet :{" "}
-              {selectedProject.manager}
+              Début : {new Date(selectedProject.start_date).toLocaleDateString("fr-FR")} • Fin :{" "}
+              {new Date(selectedProject.end_date).toLocaleDateString("fr-FR")}
             </p>
           </div>
 
-          <KanbanMembers projectName={selectedProject.name} boardName={selectedProject.kanban.name} />
+          <KanbanMembers projectId={selectedProject.id} projectName={selectedProject.name} />
         </div>
       )}
       <Toaster />

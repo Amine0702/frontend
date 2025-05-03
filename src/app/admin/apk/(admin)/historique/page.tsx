@@ -1,78 +1,57 @@
-"use client";
+"use client"
 
-import { JSX, useState } from "react";
+import { type JSX, useState } from "react"
 import {
   ClockIcon,
   MagnifyingGlassIcon,
   DocumentTextIcon,
-  UserCircleIcon,
   ArchiveBoxIcon,
   ChartBarIcon,
-  ArrowUpTrayIcon,
-  ShieldExclamationIcon,
   ArrowLeftIcon,
-} from "@heroicons/react/24/outline";
-import { motion } from "framer-motion";
-import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from "recharts";
+  ChatBubbleLeftIcon,
+  TrashIcon,
+  PencilIcon,
+  PlusCircleIcon,
+} from "@heroicons/react/24/outline"
+import { motion } from "framer-motion"
+import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from "recharts"
+import { useGetAllProjectsHistoryQuery, useGetProjectHistoryQuery } from "@/app/state/api"
+import Image from "next/image"
 
 // Palette de couleurs
-const primaryColor = "#b03ff3"; // mauve dominant
-const accentYellow = "#FFC107";
-const accentGreen = "#4CAF50";
-const accentOrange = "#FF9800";
-const accentPurple = "#9b59b6"; // ou la valeur de votre choix
+const primaryColor = "#b03ff3" // mauve dominant
+const accentYellow = "#FFC107"
+const accentGreen = "#4CAF50"
+const accentOrange = "#FF9800"
+const accentPurple = "#9b59b6" // ou la valeur de votre choix
 
 // Définition du type Projet
 type Projet = {
-  id: string;
-  nom: string;
-  dateDebut: Date;
-  chefProjet: string;
-  equipe: string;
-};
-
-// Liste de projets (exemple)
-const projets: Projet[] = [
-  { id: "alpha", nom: "Projet Alpha", dateDebut: new Date("2024-01-10"), chefProjet: "Alice Dupont", equipe: "Développement & Design" },
-  { id: "beta", nom: "Projet Beta", dateDebut: new Date("2024-02-15"), chefProjet: "Bob Martin", equipe: "Marketing & Ventes" },
-  { id: "gamma", nom: "Projet Gamma", dateDebut: new Date("2024-03-01"), chefProjet: "Claire Legrand", equipe: "Innovation & R&D" },
-];
+  id: string | number
+  nom: string
+  dateDebut: string
+  chefProjet: string
+  equipe: string
+}
 
 // Définition du type d'audit log
 type AuditLog = {
-  id: number;
-  timestamp: Date;
-  user: string;
-  action: "create" | "update" | "delete";
-  target: string;
-  details: string;
-};
-
-// Exemple d'audit logs (pour chaque projet, on pourrait imaginer des logs spécifiques)
-const mockLogs: AuditLog[] = [
-  { id: 1, timestamp: new Date("2024-03-20T09:30"), user: "admin@exemple.com", action: "create", target: "Ticket #1452", details: "Création du ticket" },
-  { id: 2, timestamp: new Date("2024-03-20T10:15"), user: "user@domaine.com", action: "update", target: "Projet X", details: "Changement de statut" },
-  { id: 3, timestamp: new Date("2024-03-20T11:00"), user: "manager@org.com", action: "delete", target: "Document", details: "Suppression fichier client.pdf" },
-];
-
-// Exemple de données pour le graphique d'évolution des actions
-const auditGraphData = [
-  { day: 'Lun', create: 2, update: 1, delete: 0 },
-  { day: 'Mar', create: 1, update: 2, delete: 1 },
-  { day: 'Mer', create: 3, update: 1, delete: 0 },
-  { day: 'Jeu', create: 0, update: 1, delete: 1 },
-  { day: 'Ven', create: 2, update: 0, delete: 2 },
-  { day: 'Sam', create: 1, update: 1, delete: 0 },
-  { day: 'Dim', create: 0, update: 0, delete: 0 },
-];
+  id: number
+  timestamp: string
+  user: string
+  avatar?: string | null
+  action: "create" | "update" | "delete" | "comment"
+  target: string
+  details: string
+}
 
 // Définition des props pour le composant StatsCard
 type StatsCardProps = {
-  title: string;
-  count: number;
-  icon: JSX.Element;
-  bgClass: string;
-};
+  title: string
+  count: number
+  icon: JSX.Element
+  bgClass: string
+}
 
 // Composant StatsCard (design et couleurs similaires)
 const StatsCard = ({ title, count, icon, bgClass }: StatsCardProps) => (
@@ -86,23 +65,39 @@ const StatsCard = ({ title, count, icon, bgClass }: StatsCardProps) => (
       <p className="font-bold text-2xl">{count}</p>
     </div>
   </motion.div>
-);
+)
 
 // Fonction pour obtenir la couleur selon l'action
 const getActionColor = (action: AuditLog["action"]) => {
   switch (action) {
     case "create":
-      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300";
+      return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300"
     case "update":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300";
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
     case "delete":
-      return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300";
+      return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300"
+    case "comment":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300"
   }
-};
+}
+
+// Fonction pour obtenir l'icône selon l'action
+const getActionIcon = (action: AuditLog["action"]) => {
+  switch (action) {
+    case "create":
+      return <PlusCircleIcon className="w-5 h-5" />
+    case "update":
+      return <PencilIcon className="w-5 h-5" />
+    case "delete":
+      return <TrashIcon className="w-5 h-5" />
+    case "comment":
+      return <ChatBubbleLeftIcon className="w-5 h-5" />
+  }
+}
 
 // En-tête de l'historique pour le projet sélectionné (design inspiré de la page d'analyse)
 const Header = ({ projet }: { projet: Projet }) => {
-  const currentDate = new Date();
+  const currentDate = new Date()
   return (
     <div className="mb-8">
       <motion.h1
@@ -119,7 +114,8 @@ const Header = ({ projet }: { projet: Projet }) => {
         </span>
       </motion.h1>
       <p className="text-gray-600 dark:text-gray-300">
-        Début : {projet.dateDebut.toLocaleDateString("fr-FR")} • Chef de projet : {projet.chefProjet} • Équipe : {projet.equipe}
+        Début : {new Date(projet.dateDebut).toLocaleDateString("fr-FR")} • Chef de projet : {projet.chefProjet} • Équipe
+        : {projet.equipe}
       </p>
       <p className="mt-2 text-lg font-medium text-gray-700 dark:text-gray-400">
         Aujourd'hui, c'est le{" "}
@@ -131,11 +127,11 @@ const Header = ({ projet }: { projet: Projet }) => {
         })}
       </p>
     </div>
-  );
-};
+  )
+}
 
 // Graphique d'évolution des actions (design similaire)
-const GraphAudit = () => (
+const GraphAudit = ({ auditGraphData }: { auditGraphData: any[] }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -153,55 +149,90 @@ const GraphAudit = () => (
         <Line type="monotone" dataKey="create" stroke={accentGreen} strokeWidth={2} dot={{ r: 3 }} />
         <Line type="monotone" dataKey="update" stroke={primaryColor} strokeWidth={2} dot={{ r: 3 }} />
         <Line type="monotone" dataKey="delete" stroke={accentOrange} strokeWidth={2} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey="comment" stroke={accentYellow} strokeWidth={2} dot={{ r: 3 }} />
       </LineChart>
     </ResponsiveContainer>
   </motion.div>
-);
+)
 
 // Composant pour afficher chaque audit log
 const AuditLogCard = ({ log }: { log: AuditLog }) => (
   <div className="p-4 hover:bg-purple-50 dark:hover:bg-purple-800 transition-colors">
     <div className="flex items-start gap-4">
-      <div className={`p-2 rounded-lg ${getActionColor(log.action)}`}>
-        <DocumentTextIcon className="w-5 h-5" />
-      </div>
+      <div className={`p-2 rounded-lg ${getActionColor(log.action)}`}>{getActionIcon(log.action)}</div>
       <div className="flex-1">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-medium dark:text-white">{log.target}</span>
-          <span className={`text-xs px-2 py-1 rounded-full ${getActionColor(log.action)}`}>
-            {log.action}
-          </span>
+          <span className={`text-xs px-2 py-1 rounded-full ${getActionColor(log.action)}`}>{log.action}</span>
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(log.timestamp)}
+            {new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(
+              new Date(log.timestamp),
+            )}
           </span>
         </div>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{log.details}</p>
         <div className="mt-2 flex items-center gap-2 text-sm">
-          <UserCircleIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          {log.avatar ? (
+            <Image
+              src={log.avatar || "/placeholder.svg"}
+              alt={log.user}
+              width={24}
+              height={24}
+              className="rounded-full"
+              onError={(e) => {
+                // Fallback if image fails to load
+                e.currentTarget.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(log.user)
+              }}
+            />
+          ) : (
+            <div
+              className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600"
+              style={{
+                backgroundImage: `url(https://ui-avatars.com/api/?name=${encodeURIComponent(log.user)}&background=random)`,
+              }}
+            />
+          )}
           <span className="text-gray-500 dark:text-gray-400">{log.user}</span>
         </div>
       </div>
     </div>
   </div>
-);
+)
 
 // Composant regroupant l'historique d'un projet
 const HistoriqueProjet = ({ projet }: { projet: Projet }) => {
-  // Pour cet exemple, nous utilisons les mêmes logs pour chaque projet.
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedAction, setSelectedAction] = useState<string>("all");
+  const { data: historyData, isLoading, error } = useGetProjectHistoryQuery(Number(projet.id))
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedAction, setSelectedAction] = useState<string>("all")
 
-  const filteredLogs = mockLogs.filter(
-    (log) =>
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    )
+  }
+
+  if (error || !historyData) {
+    return (
+      <div className="text-center py-12">
+        <ArchiveBoxIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+          Une erreur s'est produite lors du chargement de l'historique
+        </p>
+      </div>
+    )
+  }
+
+  const { auditLogs, auditGraphData, stats } = historyData
+
+  const filteredLogs = auditLogs.filter(
+    (log: AuditLog) =>
       (log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.target.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedAction === "all" || log.action === selectedAction)
-  );
-
-  const totalLogs = mockLogs.length;
-  const createLogs = mockLogs.filter((log) => log.action === "create").length;
-  const updateLogs = mockLogs.filter((log) => log.action === "update").length;
-  const deleteLogs = mockLogs.filter((log) => log.action === "delete").length;
+        log.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.details.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (selectedAction === "all" || log.action === selectedAction),
+  )
 
   return (
     <section className="p-6 bg-white dark:bg-slate-800 rounded-xl shadow-2xl space-y-8">
@@ -216,29 +247,29 @@ const HistoriqueProjet = ({ projet }: { projet: Projet }) => {
 
       {/* Cartes statistiques */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatsCard 
-          title="Total Actions" 
-          count={totalLogs}  
-          icon={<DocumentTextIcon className="w-6 h-6" style={{ color: accentPurple }} />}  
-          bgClass="bg-purple-100" 
+        <StatsCard
+          title="Total Actions"
+          count={stats.totalLogs}
+          icon={<DocumentTextIcon className="w-6 h-6" style={{ color: accentPurple }} />}
+          bgClass="bg-purple-100"
         />
-        <StatsCard 
-          title="Créations" 
-          count={createLogs} 
-          icon={<DocumentTextIcon className="w-6 h-6" style={{ color: accentOrange }} />}  
-          bgClass="bg-orange-100"
-        />
-        <StatsCard 
-          title="Modifications" 
-          count={updateLogs} 
-          icon={<ClockIcon className="w-6 h-6" style={{ color: accentGreen }} />} 
+        <StatsCard
+          title="Créations"
+          count={stats.createLogs}
+          icon={<PlusCircleIcon className="w-6 h-6" style={{ color: accentGreen }} />}
           bgClass="bg-green-100"
         />
-        <StatsCard 
-          title="Suppressions" 
-          count={deleteLogs} 
-          icon={<ArchiveBoxIcon className="w-6 h-6" style={{ color: accentYellow }} />} 
-          bgClass="bg-yellow-100" 
+        <StatsCard
+          title="Modifications"
+          count={stats.updateLogs}
+          icon={<PencilIcon className="w-6 h-6" style={{ color: primaryColor }} />}
+          bgClass="bg-blue-100"
+        />
+        <StatsCard
+          title="Suppressions"
+          count={stats.deleteLogs}
+          icon={<TrashIcon className="w-6 h-6" style={{ color: accentOrange }} />}
+          bgClass="bg-red-100"
         />
       </div>
 
@@ -263,16 +294,17 @@ const HistoriqueProjet = ({ projet }: { projet: Projet }) => {
           <option value="create">Créations</option>
           <option value="update">Modifications</option>
           <option value="delete">Suppressions</option>
+          <option value="comment">Commentaires</option>
         </select>
       </div>
 
       {/* Graphique d'évolution des actions */}
-      <GraphAudit />
+      <GraphAudit auditGraphData={auditGraphData} />
 
       {/* Liste des logs */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 divide-y divide-gray-200 dark:divide-gray-700">
-          {filteredLogs.map((log) => (
+          {filteredLogs.map((log: AuditLog) => (
             <AuditLogCard key={log.id} log={log} />
           ))}
         </div>
@@ -284,11 +316,32 @@ const HistoriqueProjet = ({ projet }: { projet: Projet }) => {
         )}
       </div>
     </section>
-  );
-};
+  )
+}
 
 // Composant pour afficher la liste des projets
 const ProjectList = ({ onSelect }: { onSelect: (projet: Projet) => void }) => {
+  const { data, isLoading, error } = useGetAllProjectsHistoryQuery()
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    )
+  }
+
+  if (error || !data || !data.projects) {
+    return (
+      <div className="text-center py-12">
+        <ArchiveBoxIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+          Une erreur s'est produite lors du chargement des projets
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 bg-gradient-to-r from-purple-50 via-blue-50 to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-700 rounded-xl shadow-2xl space-y-6">
       <h1 className="flex items-center text-4xl font-extrabold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
@@ -296,7 +349,7 @@ const ProjectList = ({ onSelect }: { onSelect: (projet: Projet) => void }) => {
         <span className="ml-4">Sélectionnez un projet pour consulter son historique</span>
       </h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projets.map((projet) => (
+        {data.projects.map((projet: Projet) => (
           <motion.div
             key={projet.id}
             whileHover={{ scale: 1.03 }}
@@ -305,7 +358,7 @@ const ProjectList = ({ onSelect }: { onSelect: (projet: Projet) => void }) => {
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{projet.nom}</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              Début : {projet.dateDebut.toLocaleDateString("fr-FR")}
+              Début : {new Date(projet.dateDebut).toLocaleDateString("fr-FR")}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-300">Chef : {projet.chefProjet}</p>
             <p className="text-sm text-gray-600 dark:text-gray-300">Équipe : {projet.equipe}</p>
@@ -313,20 +366,20 @@ const ProjectList = ({ onSelect }: { onSelect: (projet: Projet) => void }) => {
         ))}
       </div>
     </div>
-  );
-};
+  )
+}
 
 // Composant principal gérant l'affichage de la liste ou de l'historique selon le projet sélectionné
 export default function HistoriqueProjets() {
-  const [selectedProject, setSelectedProject] = useState<Projet | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Projet | null>(null)
 
   if (!selectedProject) {
     return (
       <section className="p-6">
         <ProjectList onSelect={(projet) => setSelectedProject(projet)} />
       </section>
-    );
+    )
   }
 
-  return <HistoriqueProjet projet={selectedProject} />;
+  return <HistoriqueProjet projet={selectedProject} />
 }

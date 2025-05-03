@@ -43,6 +43,33 @@ export const api = createApi({
       invalidatesTags: ["User"],
     }),
 
+    getAllUsers: builder.query({
+      query: () => `/users`,
+      providesTags: ["User"],
+    }),
+
+    updateUserRole: builder.mutation({
+      query: ({ id, role }) => ({
+        url: `/users/${id}/role`,
+        method: "PUT",
+        body: { role },
+      }),
+      invalidatesTags: ["User"],
+    }),
+
+    deleteUser: builder.mutation({
+      query: (id) => ({
+        url: `/users/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User"],
+    }),
+
+    getUserStats: builder.query({
+      query: () => `/users/stats`,
+      providesTags: ["User"],
+    }),
+
     // Project endpoints
     getUserProjects: builder.query({
       query: (clerkUserId) => `/projects/user/${clerkUserId}`,
@@ -304,8 +331,11 @@ export const api = createApi({
       ],
     }),
 
-    getAllProjectsStats: builder.query({
-      query: () => `/projects/stats/all`,
+    getAllProjectsStats: builder.query<any, object>({
+      query: (params = {}) => ({
+        url: `/projects/stats/all`,
+        params: params,
+      }),
       providesTags: ["ProjectStats", "Projects"],
     }),
 
@@ -365,6 +395,46 @@ export const api = createApi({
     getReportDashboard: builder.query({
       query: () => `/reports/dashboard`,
       providesTags: ["Projects", "Teams", "ProjectStats", "Reports"],
+    }),
+
+    getDashboardData: builder.query({
+      query: () => "/dashboard/data",
+      providesTags: ["Projects", "Tasks"],
+    }),
+
+    // Add this endpoint to the api object in the endpoints section
+    getProjectLifecycle: builder.query<any, number>({
+      query: (id: number) => `/projects/${id}/lifecycle`,
+      providesTags: (result, error, id) => [
+        { type: "Projects", id },
+        { type: "Tasks", id },
+      ],
+    }),
+
+    // Project history endpoints
+    getProjectHistory: builder.query<any, number>({
+      query: (projectId) => `/projects/${projectId}/history`,
+      providesTags: (result, error, id) => [{ type: "Projects", id }],
+    }),
+
+    getAllProjectsHistory: builder.query<any, void>({
+      query: () => `/projects/history/all`,
+      providesTags: ["Projects"],
+    }),
+
+    inviteUsers: builder.mutation({
+      query: ({ id, invitations }) => ({
+        url: `/projects/${id}/invite`,
+        method: "POST",
+        body: { invitations },
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Projects", id }, { type: "Teams" }],
+    }),
+
+    // Add this new endpoint in the endpoints object inside createApi
+    getAIGeneratedTasks: builder.query<any, void>({
+      query: () => `/ai/generated-tasks`,
+      providesTags: ["Tasks"],
     }),
   }),
 })
@@ -429,4 +499,16 @@ export const {
   useGetTeamPerformanceQuery,
   useGetTeamMemberPerformanceQuery,
   useGetReportDashboardQuery,
+  useGetDashboardDataQuery,
+  // Add this to the export section at the bottom of the file
+  useGetProjectLifecycleQuery,
+  useGetProjectHistoryQuery,
+  useGetAllProjectsHistoryQuery,
+  useGetAllUsersQuery,
+  useUpdateUserRoleMutation,
+  useDeleteUserMutation,
+  useGetUserStatsQuery,
+  useInviteUsersMutation,
+  // Add this to the export section at the bottom of the file
+  useGetAIGeneratedTasksQuery,
 } = api
