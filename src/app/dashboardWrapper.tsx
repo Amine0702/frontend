@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import Navbar from "./(components)/Navbar";
 import Sidebar from "./(components)/Sidebar";
-import { useAppSelector } from './(components)/redux'; // Juste les hooks ici
+import { useAppSelector } from "./(components)/redux";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const isSidebarCollapsed = useAppSelector(
@@ -22,19 +23,19 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     <div className="flex min-h-screen w-full bg-gray-50 text-gray-900 dark:bg-dark-bg dark:text-white">
       <Sidebar />
       <main
-        className={`flex w-full flex-col ${
-          isSidebarCollapsed ? "" : "md:pl-64"
+        className={`flex w-full flex-col transition-all duration-300 ${
+          isSidebarCollapsed ? "md:pl-[90px]" : "md:pl-[255px]"
         }`}
       >
         <Navbar />
-        {children}
+        <div className="p-4">{children}</div>
       </main>
     </div>
   );
 };
 
 const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
-  return <DashboardLayout>{children}</DashboardLayout>; // ✅ Plus besoin du StoreProvider ici
+  return <DashboardLayout>{children}</DashboardLayout>;
 };
 
 export default DashboardWrapper;

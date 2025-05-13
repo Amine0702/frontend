@@ -1,7 +1,7 @@
-"use client"
-import { useState, useEffect } from "react"
-import { useParams, useSearchParams } from "next/navigation"
-import "./kan.css"
+"use client";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
+import "./kan.css";
 import {
   useGetProjectQuery,
   useToggleTaskTimerMutation,
@@ -13,27 +13,28 @@ import {
   useAddColumnMutation,
   useUpdateColumnOrderMutation,
   useAcceptInvitationMutation,
-} from "@/app/state/api"
-import ProjectHeader from "../components/ProjectHeader"
-import KanbanView from "../components/KanbanView"
-import ListView from "../components/ListView"
-import TableView from "../components/TableView"
-import TimelineView from "../components/TimelineView"
-import TaskModal from "../components/TaskModal"
-import TaskAICreationModal from "../components/TaskAICreationModal"
-import NewTaskModal from "../components/NewTaskModal"
-import ChatbotModal from "../components/ChatbotModal"
-import { Bot } from "lucide-react"
-import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
-import { useUser } from "@clerk/nextjs"
+  useDeleteProjectMutation,
+} from "@/app/state/api";
+import ProjectHeader from "../components/ProjectHeader";
+import KanbanView from "../components/KanbanView";
+import ListView from "../components/ListView";
+import TableView from "../components/TableView";
+import TimelineView from "../components/TimelineView";
+import TaskModal from "../components/TaskModal";
+import TaskAICreationModal from "../components/TaskAICreationModal";
+import NewTaskModal from "../components/NewTaskModal";
+import ChatbotModal from "../components/ChatbotModal";
+import { Bot } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
 
 const ProjectPage = () => {
-  const { id } = useParams()
-  const searchParams = useSearchParams()
-  const projectId = Array.isArray(id) ? id[0] : id
-  const invitationToken = searchParams.get("token")
-  const { user, isLoaded: userLoaded } = useUser()
+  const { id } = useParams();
+  const searchParams = useSearchParams();
+  const projectId = Array.isArray(id) ? id[0] : id;
+  const invitationToken = searchParams.get("token");
+  const { user, isLoaded: userLoaded } = useUser();
 
   // API queries and mutations
   const {
@@ -43,28 +44,34 @@ const ProjectPage = () => {
     refetch,
   } = useGetProjectQuery(projectId, {
     pollingInterval: 30000, // Poll every 30 seconds for updates
-  })
-  const [toggleTaskTimer] = useToggleTaskTimerMutation()
-  const [updateTask] = useUpdateTaskMutation()
-  const [deleteTask] = useDeleteTaskMutation()
-  const [addComment] = useAddCommentMutation()
-  const [addAttachment] = useAddAttachmentMutation()
-  const [moveTask] = useMoveTaskMutation()
-  const [addColumn] = useAddColumnMutation()
-  const [updateColumnOrder] = useUpdateColumnOrderMutation()
-  const [acceptInvitation, { isLoading: isAcceptingInvitation }] = useAcceptInvitationMutation()
+  });
+  const [toggleTaskTimer] = useToggleTaskTimerMutation();
+  const [updateTask] = useUpdateTaskMutation();
+  const [deleteTask] = useDeleteTaskMutation();
+  const [addComment] = useAddCommentMutation();
+  const [addAttachment] = useAddAttachmentMutation();
+  const [moveTask] = useMoveTaskMutation();
+  const [addColumn] = useAddColumnMutation();
+  const [updateColumnOrder] = useUpdateColumnOrderMutation();
+  const [acceptInvitation, { isLoading: isAcceptingInvitation }] =
+    useAcceptInvitationMutation();
+  const [deleteProject] = useDeleteProjectMutation();
+  const router = useRouter();
 
   // Local state
-  const [view, setView] = useState<"kanban" | "list" | "table" | "timeline">("kanban")
-  const [showNewTaskOptions, setShowNewTaskOptions] = useState(false)
-  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false)
-  const [isAITaskCreationSelected, setIsAITaskCreationSelected] = useState(false)
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [invitationAccepted, setInvitationAccepted] = useState(false)
-  const [userRole, setUserRole] = useState<string>("observer")
-  const [currentUserId, setCurrentUserId] = useState<string>("")
-  const [formattedProject, setFormattedProject] = useState<any>(null)
-  const [showChatbot, setShowChatbot] = useState(false)
+  const [view, setView] = useState<"kanban" | "list" | "table" | "timeline">(
+    "kanban",
+  );
+  const [showNewTaskOptions, setShowNewTaskOptions] = useState(false);
+  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [isAITaskCreationSelected, setIsAITaskCreationSelected] =
+    useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [invitationAccepted, setInvitationAccepted] = useState(false);
+  const [userRole, setUserRole] = useState<string>("observer");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [formattedProject, setFormattedProject] = useState<any>(null);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Handle invitation token if present
   useEffect(() => {
@@ -74,34 +81,44 @@ const ProjectPage = () => {
           const result = await acceptInvitation({
             token: invitationToken,
             clerkUserId: user.id,
-          }).unwrap()
+          }).unwrap();
 
           // Stocker le rôle attribué lors de l'invitation
           if (result && result.role) {
-            localStorage.setItem(`projectRole_${projectId}`, result.role)
-            setUserRole(result.role)
+            localStorage.setItem(`projectRole_${projectId}`, result.role);
+            setUserRole(result.role);
           }
 
-          toast.success("Invitation acceptée avec succès!")
-          setInvitationAccepted(true)
-          refetch()
+          toast.success("Invitation acceptée avec succès!");
+          setInvitationAccepted(true);
+          refetch();
         } catch (error) {
-          console.error("Erreur lors de l'acceptation de l'invitation:", error)
-          toast.error("Impossible d'accepter l'invitation. Veuillez réessayer.")
+          console.error("Erreur lors de l'acceptation de l'invitation:", error);
+          toast.error(
+            "Impossible d'accepter l'invitation. Veuillez réessayer.",
+          );
         }
-      }
+      };
 
-      acceptProjectInvitation()
+      acceptProjectInvitation();
     }
-  }, [invitationToken, userLoaded, user, invitationAccepted, acceptInvitation, refetch, projectId])
+  }, [
+    invitationToken,
+    userLoaded,
+    user,
+    invitationAccepted,
+    acceptInvitation,
+    refetch,
+    projectId,
+  ]);
 
   // Stocker l'ID de l'utilisateur actuel
   useEffect(() => {
     if (userLoaded && user) {
-      setCurrentUserId(user.id)
-      localStorage.setItem("currentUserId", user.id)
+      setCurrentUserId(user.id);
+      localStorage.setItem("currentUserId", user.id);
     }
-  }, [userLoaded, user])
+  }, [userLoaded, user]);
 
   // Formater les données du projet lorsqu'elles sont disponibles
   useEffect(() => {
@@ -113,11 +130,11 @@ const ProjectPage = () => {
         team:
           project.team_members?.map(
             (member: {
-              id: { toString: () => any }
-              name: any
-              avatar: any
-              clerk_user_id: any
-              pivot: { role: any }
+              id: { toString: () => any };
+              name: any;
+              avatar: any;
+              clerk_user_id: any;
+              pivot: { role: any };
             }) => ({
               id: member.id.toString(),
               name: member.name,
@@ -127,113 +144,135 @@ const ProjectPage = () => {
             }),
           ) || [],
         columns:
-          project.columns?.map((column: { id: { toString: () => any }; title: any; tasks: any[] }) => ({
-            id: column.id.toString(),
-            title: column.title,
-            tasks:
-              column.tasks?.map(
-                (task: {
-                  id: { toString: () => any }
-                  title: any
-                  description: any
-                  status: any
-                  priority: any
-                  assignee_id: { toString: () => any }
-                  creator_id: any
-                  estimated_time: any
-                  actual_time: any
-                  due_date: string | number | Date
-                  started_at: string | number | Date
-                  completed_at: string | number | Date
-                  timer_active: any
-                  tags: any
-                  attachments: any[]
-                  comments: any[]
-                }) => ({
-                  id: task.id.toString(),
-                  title: task.title,
-                  description: task.description,
-                  status: task.status,
-                  priority: task.priority,
-                  assigneeId: task.assignee_id?.toString(),
-                  creatorId: task.creator_id,
-                  estimatedTime: task.estimated_time,
-                  actualTime: task.actual_time,
-                  dueDate: task.due_date ? new Date(task.due_date) : undefined,
-                  startedAt: task.started_at ? new Date(task.started_at) : undefined,
-                  completedAt: task.completed_at ? new Date(task.completed_at) : undefined,
-                  timerActive: task.timer_active,
-                  tags: task.tags || [],
-                  attachments:
-                    task.attachments?.map(
-                      (attachment: { id: { toString: () => any }; name: any; type: any; url: any; size: any }) => ({
-                        id: attachment.id.toString(),
-                        name: attachment.name,
-                        type: attachment.type,
-                        url: attachment.url,
-                        size: attachment.size,
-                      }),
-                    ) || [],
-                  comments:
-                    task.comments?.map(
-                      (comment: {
-                        id: { toString: () => any }
-                        author_id: { toString: () => any }
-                        text: any
-                        created_at: string | number | Date
-                      }) => ({
-                        id: comment.id.toString(),
-                        authorId: comment.author_id.toString(),
-                        text: comment.text,
-                        createdAt: new Date(comment.created_at),
-                      }),
-                    ) || [],
-                }),
-              ) || [],
-          })) || [],
-      }
-      setFormattedProject(formatted)
+          project.columns?.map(
+            (column: {
+              id: { toString: () => any };
+              title: any;
+              tasks: any[];
+            }) => ({
+              id: column.id.toString(),
+              title: column.title,
+              tasks:
+                column.tasks?.map(
+                  (task: {
+                    id: { toString: () => any };
+                    title: any;
+                    description: any;
+                    status: any;
+                    priority: any;
+                    assignee_id: { toString: () => any };
+                    creator_id: any;
+                    estimated_time: any;
+                    actual_time: any;
+                    due_date: string | number | Date;
+                    started_at: string | number | Date;
+                    completed_at: string | number | Date;
+                    timer_active: any;
+                    tags: any;
+                    attachments: any[];
+                    comments: any[];
+                  }) => ({
+                    id: task.id.toString(),
+                    title: task.title,
+                    description: task.description,
+                    status: task.status,
+                    priority: task.priority,
+                    assigneeId: task.assignee_id?.toString(),
+                    creatorId: task.creator_id,
+                    estimatedTime: task.estimated_time,
+                    actualTime: task.actual_time,
+                    dueDate: task.due_date
+                      ? new Date(task.due_date)
+                      : undefined,
+                    startedAt: task.started_at
+                      ? new Date(task.started_at)
+                      : undefined,
+                    completedAt: task.completed_at
+                      ? new Date(task.completed_at)
+                      : undefined,
+                    timerActive: task.timer_active,
+                    tags: task.tags || [],
+                    attachments:
+                      task.attachments?.map(
+                        (attachment: {
+                          id: { toString: () => any };
+                          name: any;
+                          type: any;
+                          url: any;
+                          size: any;
+                        }) => ({
+                          id: attachment.id.toString(),
+                          name: attachment.name,
+                          type: attachment.type,
+                          url: attachment.url,
+                          size: attachment.size,
+                        }),
+                      ) || [],
+                    comments:
+                      task.comments?.map(
+                        (comment: {
+                          id: { toString: () => any };
+                          author_id: { toString: () => any };
+                          text: any;
+                          created_at: string | number | Date;
+                        }) => ({
+                          id: comment.id.toString(),
+                          authorId: comment.author_id.toString(),
+                          text: comment.text,
+                          createdAt: new Date(comment.created_at),
+                        }),
+                      ) || [],
+                  }),
+                ) || [],
+            }),
+          ) || [],
+      };
+      setFormattedProject(formatted);
     }
-  }, [project])
+  }, [project]);
 
   // Déterminer le rôle de l'utilisateur dans le projet
   useEffect(() => {
     // Vérifier s'il y a un rôle stocké pour ce projet
-    const storedRole = localStorage.getItem(`projectRole_${projectId}`)
+    const storedRole = localStorage.getItem(`projectRole_${projectId}`);
 
     if (storedRole) {
-      setUserRole(storedRole)
+      setUserRole(storedRole);
     } else if (project && userLoaded && user) {
       // Si pas de rôle stocké, déterminer le rôle à partir des données du projet
-      const clerkUserId = user.id
+      const clerkUserId = user.id;
 
       // Vérifier si l'utilisateur est un manager
       const isManager = project.team_members?.some(
-        (member: any) => member.clerk_user_id === clerkUserId && member.pivot?.role === "manager",
-      )
+        (member: any) =>
+          member.clerk_user_id === clerkUserId &&
+          member.pivot?.role === "manager",
+      );
 
       // Vérifier si l'utilisateur est un membre
       const isMember = project.team_members?.some(
-        (member: any) => member.clerk_user_id === clerkUserId && member.pivot?.role === "member",
-      )
+        (member: any) =>
+          member.clerk_user_id === clerkUserId &&
+          member.pivot?.role === "member",
+      );
 
       // Définir le rôle et le stocker
-      const role = isManager ? "manager" : isMember ? "member" : "observer"
-      setUserRole(role)
-      localStorage.setItem(`projectRole_${projectId}`, role)
+      const role = isManager ? "manager" : isMember ? "member" : "observer";
+      setUserRole(role);
+      localStorage.setItem(`projectRole_${projectId}`, role);
     }
-  }, [project, projectId, user, userLoaded])
+  }, [project, projectId, user, userLoaded]);
 
   // Gérer les paramètres d'URL
   useEffect(() => {
     // Récupérer l'ID de la tâche depuis les paramètres d'URL
-    const taskId = searchParams.get("taskId")
+    const taskId = searchParams.get("taskId");
 
     // Si un ID de tâche est présent dans l'URL, ouvrir le modal correspondant
     if (taskId) {
-      setSelectedTaskId(taskId)
+      setSelectedTaskId(taskId);
     }
-  }, [searchParams])
+  }, [searchParams]);
 
   // Derived state
   const selectedTask =
@@ -241,149 +280,182 @@ const ProjectPage = () => {
       ? formattedProject.columns
           ?.flatMap((col: { tasks: any }) => col.tasks)
           .find((task: { id: string }) => task.id === selectedTaskId)
-      : null
+      : null;
 
   // Fonction pour vérifier si l'utilisateur peut modifier une tâche
   const canUserModifyTask = (task: any) => {
-    if (userRole === "manager") return true
-    if (userRole === "observer") return false
+    if (userRole === "manager") return true;
+    if (userRole === "observer") return false;
 
     // Si l'utilisateur est un membre, il peut modifier la tâche s'il en est le créateur ou s'il est assigné à cette tâche
     if (userRole === "member") {
       // Vérifier si l'utilisateur est le créateur de la tâche
       if (task.creatorId === currentUserId) {
-        return true
+        return true;
+      }
+
+      // Vérifier si la tâche a été générée par l'IA (contient le tag 'généré_par_ia')
+      if (
+        task.tags &&
+        Array.isArray(task.tags) &&
+        task.tags.includes("généré_par_ia")
+      ) {
+        return true;
       }
 
       // Vérifier si l'utilisateur est assigné à la tâche
       if (task.assigneeId && formattedProject && formattedProject.team) {
         // Trouver le membre d'équipe correspondant à l'utilisateur actuel
-        const currentTeamMember = formattedProject.team.find((member: any) => member.clerk_user_id === currentUserId)
-        if (currentTeamMember && task.assigneeId.toString() === currentTeamMember.id.toString()) {
-          return true
+        const currentTeamMember = formattedProject.team.find(
+          (member: any) => member.clerk_user_id === currentUserId,
+        );
+        if (
+          currentTeamMember &&
+          task.assigneeId.toString() === currentTeamMember.id.toString()
+        ) {
+          return true;
         }
       }
     }
 
-    return false
-  }
+    return false;
+  };
 
   // Handlers
   const handleNewTask = () => {
     // Vérifier si l'utilisateur a le droit de créer des tâches
     if (userRole === "observer") {
-      toast.error("Les observateurs ne peuvent pas créer de tâches")
-      return
+      toast.error("Les observateurs ne peuvent pas créer de tâches");
+      return;
     }
 
-    setShowNewTaskOptions(true)
-  }
+    setShowNewTaskOptions(true);
+  };
 
   const closeNewTaskOptions = () => {
-    setShowNewTaskOptions(false)
-  }
+    setShowNewTaskOptions(false);
+  };
 
-  const handleViewChange = (newView: "kanban" | "list" | "table" | "timeline") => {
-    setView(newView)
-  }
+  const handleViewChange = (
+    newView: "kanban" | "list" | "table" | "timeline",
+  ) => {
+    setView(newView);
+  };
 
   const openTaskModal = (taskId: string) => {
-    setSelectedTaskId(taskId)
-  }
+    setSelectedTaskId(taskId);
+  };
 
   const closeTaskModal = () => {
-    setSelectedTaskId(null)
-  }
+    setSelectedTaskId(null);
+  };
 
   const openNewTaskModal = (useAI: boolean) => {
     // Vérifier si l'utilisateur a le droit de créer des tâches
     if (userRole === "observer") {
-      toast.error("Les observateurs ne peuvent pas créer de tâches")
-      return
+      toast.error("Les observateurs ne peuvent pas créer de tâches");
+      return;
     }
 
-    setIsAITaskCreationSelected(useAI)
-    setIsNewTaskModalOpen(true)
-  }
+    setIsAITaskCreationSelected(useAI);
+    setIsNewTaskModalOpen(true);
+  };
 
   const closeNewTaskModal = () => {
-    setIsNewTaskModalOpen(false)
-  }
+    setIsNewTaskModalOpen(false);
+  };
 
   const handleToggleTimer = async (taskId: string) => {
-    if (!formattedProject) return
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission de modifier cette tâche")
-      return
+      toast.error("Vous n'avez pas la permission de modifier cette tâche");
+      return;
     }
 
     try {
-      await toggleTaskTimer(taskId).unwrap()
+      await toggleTaskTimer(taskId).unwrap();
       // Ne pas afficher de toast pour ne pas perturber l'utilisateur
     } catch (error) {
-      toast.error("Erreur lors de la gestion du chronomètre")
-      console.error("Error toggling timer:", error)
+      toast.error("Erreur lors de la gestion du chronomètre");
+      console.error("Error toggling timer:", error);
     }
-  }
+  };
 
   const handleUpdateTask = async (taskId: string, updates: any) => {
-    if (!formattedProject) return
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission de modifier cette tâche")
-      return
+      toast.error("Vous n'avez pas la permission de modifier cette tâche");
+      return;
     }
 
     try {
-      await updateTask({ id: taskId, ...updates }).unwrap()
-      toast.success("Tâche mise à jour avec succès")
+      // Assurons-nous que les noms des champs correspondent à ce que le backend attend
+      const updatedData = {
+        ...updates,
+        // Assurez-vous que ces champs sont correctement nommés pour le backend
+        due_date: updates.due_date || updates.dueDate,
+        assignee_id: updates.assignee_id || updates.assigneeId,
+      };
+
+      // Supprimons les champs qui pourraient causer des conflits
+      if (updatedData.dueDate) delete updatedData.dueDate;
+      if (updatedData.assigneeId) delete updatedData.assigneeId;
+
+      await updateTask({ id: taskId, ...updatedData }).unwrap();
+      toast.success("Tâche mise à jour avec succès");
+
+      // Forcer un rafraîchissement des données
+      await refetch();
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour de la tâche")
-      console.error("Error updating task:", error)
+      toast.error("Erreur lors de la mise à jour de la tâche");
+      console.error("Error updating task:", error);
     }
-  }
+  };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!formattedProject) return
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission de supprimer cette tâche")
-      return
+      toast.error("Vous n'avez pas la permission de supprimer cette tâche");
+      return;
     }
 
     try {
-      await deleteTask(taskId).unwrap()
-      setSelectedTaskId(null)
-      toast.success("Tâche supprimée avec succès")
+      await deleteTask(taskId).unwrap();
+      setSelectedTaskId(null);
+      toast.success("Tâche supprimée avec succès");
     } catch (error) {
-      toast.error("Erreur lors de la suppression de la tâche")
-      console.error("Error deleting task:", error)
+      toast.error("Erreur lors de la suppression de la tâche");
+      console.error("Error deleting task:", error);
     }
-  }
+  };
 
   const handleAddComment = async (taskId: string, comment: any) => {
-    if (!formattedProject) return
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission d'ajouter des commentaires à cette tâche")
-      return
+      toast.error(
+        "Vous n'avez pas la permission d'ajouter des commentaires à cette tâche",
+      );
+      return;
     }
 
     try {
@@ -391,47 +463,53 @@ const ProjectPage = () => {
         taskId,
         author_id: comment.authorId,
         text: comment.text,
-      }).unwrap()
+      }).unwrap();
 
-      toast.success("Commentaire ajouté avec succès")
-      await refetch()
+      toast.success("Commentaire ajouté avec succès");
+      await refetch();
     } catch (error) {
-      toast.error("Erreur lors de l'ajout du commentaire")
-      console.error("Error adding comment:", error)
+      toast.error("Erreur lors de l'ajout du commentaire");
+      console.error("Error adding comment:", error);
     }
-  }
+  };
 
   const handleAddAttachment = async (taskId: string, attachment: any) => {
-    if (!formattedProject) return
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission d'ajouter des pièces jointes à cette tâche")
-      return
+      toast.error(
+        "Vous n'avez pas la permission d'ajouter des pièces jointes à cette tâche",
+      );
+      return;
     }
 
     try {
-      await addAttachment({ taskId, ...attachment }).unwrap()
-      toast.success("Pièce jointe ajoutée avec succès")
+      await addAttachment({ taskId, ...attachment }).unwrap();
+      toast.success("Pièce jointe ajoutée avec succès");
     } catch (error) {
-      toast.error("Erreur lors de l'ajout de la pièce jointe")
-      console.error("Error adding attachment:", error)
+      toast.error("Erreur lors de l'ajout de la pièce jointe");
+      console.error("Error adding attachment:", error);
     }
-  }
+  };
 
-  const handleMoveTask = async (taskId: string, sourceColId: string, targetColId: string) => {
-    if (!formattedProject) return
+  const handleMoveTask = async (
+    taskId: string,
+    sourceColId: string,
+    targetColId: string,
+  ) => {
+    if (!formattedProject) return;
 
     const task = formattedProject.columns
       ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId)
+      .find((t: { id: string }) => t.id === taskId);
 
     if (!task || !canUserModifyTask(task)) {
-      toast.error("Vous n'avez pas la permission de déplacer cette tâche")
-      return
+      toast.error("Vous n'avez pas la permission de déplacer cette tâche");
+      return;
     }
 
     try {
@@ -439,18 +517,18 @@ const ProjectPage = () => {
         task_id: taskId,
         source_column_id: sourceColId,
         target_column_id: targetColId,
-      }).unwrap()
-      toast.success("Tâche déplacée avec succès")
+      }).unwrap();
+      toast.success("Tâche déplacée avec succès");
     } catch (error) {
-      toast.error("Erreur lors du déplacement de la tâche")
-      console.error("Error moving task:", error)
+      toast.error("Erreur lors du déplacement de la tâche");
+      console.error("Error moving task:", error);
     }
-  }
+  };
 
   const handleAddColumn = async (columnData: any) => {
     if (userRole !== "manager") {
-      toast.error("Seuls les managers peuvent ajouter des colonnes")
-      return
+      toast.error("Seuls les managers peuvent ajouter des colonnes");
+      return;
     }
 
     try {
@@ -458,18 +536,18 @@ const ProjectPage = () => {
         project_id: projectId,
         title: columnData.title,
         order: columnData.order,
-      }).unwrap()
-      toast.success("Colonne ajoutée avec succès")
+      }).unwrap();
+      toast.success("Colonne ajoutée avec succès");
     } catch (error) {
-      toast.error("Erreur lors de l'ajout de la colonne")
-      console.error("Error adding column:", error)
+      toast.error("Erreur lors de l'ajout de la colonne");
+      console.error("Error adding column:", error);
     }
-  }
+  };
 
   const handleReorderColumns = async (columns: any[]) => {
     if (userRole !== "manager") {
-      toast.error("Seuls les managers peuvent réorganiser les colonnes")
-      return
+      toast.error("Seuls les managers peuvent réorganiser les colonnes");
+      return;
     }
 
     try {
@@ -479,68 +557,94 @@ const ProjectPage = () => {
           id: col.id,
           order: index,
         })),
-      }).unwrap()
-      toast.success("Colonnes réorganisées avec succès")
+      }).unwrap();
+      toast.success("Colonnes réorganisées avec succès");
     } catch (error) {
-      toast.error("Erreur lors de la réorganisation des colonnes")
-      console.error("Error reordering columns:", error)
+      toast.error("Erreur lors de la réorganisation des colonnes");
+      console.error("Error reordering columns:", error);
     }
-  }
+  };
+
+  const handleDeleteProject = async () => {
+    if (userRole !== "manager") {
+      toast.error("Seuls les managers peuvent supprimer le projet");
+      return;
+    }
+
+    try {
+      await deleteProject(projectId).unwrap();
+      toast.success("Projet supprimé avec succès");
+      // Rediriger vers la page des projets
+      router.push("/dashboard");
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du projet");
+      console.error("Error deleting project:", error);
+    }
+  };
 
   // Loading state
   if (isLoading || isAcceptingInvitation) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-violet-500" />
-          <h1 className="text-xl font-medium text-gray-800 mb-2 dark:text-gray-200">
-            {isAcceptingInvitation ? "Acceptation de l'invitation..." : "Chargement du projet..."}
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-violet-500" />
+          <h1 className="mb-2 text-xl font-medium text-gray-800 dark:text-gray-200">
+            {isAcceptingInvitation
+              ? "Acceptation de l'invitation..."
+              : "Chargement du projet..."}
           </h1>
         </div>
       </div>
-    )
+    );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <h1 className="text-xl font-medium text-red-600 mb-2 dark:text-red-400">
+          <h1 className="mb-2 text-xl font-medium text-red-600 dark:text-red-400">
             Erreur lors du chargement du projet
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">{JSON.stringify(error)}</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {JSON.stringify(error)}
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   // If no project is loaded, display a message
   if (!project || !formattedProject) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <h1 className="text-xl font-medium text-gray-800 mb-2 dark:text-gray-200">Aucun projet disponible</h1>
-          <p className="text-gray-600 dark:text-gray-400">Veuillez créer un nouveau projet pour commencer.</p>
+          <h1 className="mb-2 text-xl font-medium text-gray-800 dark:text-gray-200">
+            Aucun projet disponible
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Veuillez créer un nouveau projet pour commencer.
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
       <ProjectHeader
         project={formattedProject}
         onNewTask={handleNewTask}
         currentView={view}
         onViewChange={handleViewChange}
         userRole={userRole}
+        onDeleteProject={handleDeleteProject}
       />
 
       {/* Bouton flottant pour le chatbot */}
       <button
         onClick={() => setShowChatbot(true)}
-        className="fixed bottom-6 right-6 p-4 bg-violet-500 text-white rounded-full shadow-lg hover:bg-violet-600 transition-colors z-20"
+        className="fixed bottom-6 right-6 z-20 rounded-full bg-violet-500 p-4 text-white shadow-lg transition-colors hover:bg-violet-600"
         title="Assistant IA"
       >
         <Bot size={24} />
@@ -559,9 +663,18 @@ const ProjectPage = () => {
             canUserModifyTask={canUserModifyTask}
           />
         )}
-        {view === "list" && <ListView project={formattedProject} onTaskClick={openTaskModal} />}
-        {view === "table" && <TableView project={formattedProject} onTaskClick={openTaskModal} />}
-        {view === "timeline" && <TimelineView project={formattedProject} onTaskClick={openTaskModal} />}
+        {view === "list" && (
+          <ListView project={formattedProject} onTaskClick={openTaskModal} />
+        )}
+        {view === "table" && (
+          <TableView project={formattedProject} onTaskClick={openTaskModal} />
+        )}
+        {view === "timeline" && (
+          <TimelineView
+            project={formattedProject}
+            onTaskClick={openTaskModal}
+          />
+        )}
       </div>
 
       {/* Modal for task details */}
@@ -582,7 +695,12 @@ const ProjectPage = () => {
       )}
 
       {/* Modal for choosing task creation type */}
-      {showNewTaskOptions && <TaskAICreationModal onClose={closeNewTaskOptions} onSelectOption={openNewTaskModal} />}
+      {showNewTaskOptions && (
+        <TaskAICreationModal
+          onClose={closeNewTaskOptions}
+          onSelectOption={openNewTaskModal}
+        />
+      )}
 
       {/* Modal for creating a new task */}
       {isNewTaskModalOpen && (
@@ -600,7 +718,7 @@ const ProjectPage = () => {
       {/* Modal du chatbot */}
       {showChatbot && <ChatbotModal onClose={() => setShowChatbot(false)} />}
     </div>
-  )
-}
+  );
+};
 
-export default ProjectPage
+export default ProjectPage;

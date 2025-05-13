@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { Github, Globe, Linkedin, Youtube } from "lucide-react";
 
 const Footer = () => {
   const [currentYear, setCurrentYear] = useState<number | null>(null);
@@ -12,14 +13,11 @@ const Footer = () => {
 
   return (
     <footer className="footer">
-      <div className="container">
-        <div className="pro_border"></div>
-      </div>
       <div className="footer_top">
         <div className="container">
           <div className="row">
             {/* Logo et description */}
-            <div className="col-xl-3 col-md-6 col-lg-3">
+            <div className="col-xl-4 col-md-6 col-lg-4">
               <div className="footer_widget">
                 <div className="Logo">
                   <Link href="/">
@@ -36,30 +34,11 @@ const Footer = () => {
                   Simplifiez la gestion de vos projets avec notre plateforme
                   tout-en-un pour la collaboration et la productivité.
                 </p>
-                <div className="socail_links">
-                  <ul>
-                    <li>
-                      <a href="#" aria-label="Facebook">
-                        <i className="ti-facebook"></i>
-                      </a>
-                    </li>
-                    <li>
-                      <a href="#" aria-label="Twitter">
-                        <i className="ti-twitter-alt"></i>
-                      </a>
-                    </li>
-                    <li>
-                      <a href="#" aria-label="Instagram">
-                        <i className="fa fa-instagram"></i>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
               </div>
             </div>
 
             {/* Services */}
-            <div className="col-xl-2 col-md-6 col-lg-3">
+            <div className="col-xl-4 col-md-6 col-lg-4">
               <div className="footer_widget">
                 <h3 className="footer_title">Services</h3>
                 <ul>
@@ -82,38 +61,39 @@ const Footer = () => {
               </div>
             </div>
 
-            {/* Liens utiles */}
-            <div className="col-xl-2 col-md-6 col-lg-2">
+            {/* Liens sociaux */}
+            <div className="col-xl-4 col-md-6 col-lg-4">
               <div className="footer_widget">
-                <h3 className="footer_title">Liens utiles</h3>
-                <ul id="navigation">
-                  <li>
-                    <Link href="/">Accueil</Link>
-                  </li>
-                  <li>
-                    <Link href="/#services">Services</Link>
-                  </li>
-                  <li>
-                    <Link href="/#features">Fonctionnalités</Link>
-                  </li>
-                  <li>
-                    <Link href="/#CompanyInfo">À propos</Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Newsletter */}
-            <div className="col-xl-4 offset-xl-1 col-md-6 col-lg-4">
-              <div className="footer_widget">
-                <h3 className="footer_title">Abonnez-vous</h3>
-                <form action="#" className="newsletter_form">
-                  <input type="email" placeholder="Votre email" required />
-                  <button type="submit">S&apos;abonner</button>
-                </form>
-                <p className="newsletter_text">
-                  Recevez des mises à jour sur nos fonctionnalités et
-                  améliorations directement dans votre boîte de réception.
+                <h3 className="footer_title">Suivez-nous</h3>
+                <div className="social_icons">
+                  <a
+                    href="https://www.youtube.com/@maisonduweb2738"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="social_icon"
+                  >
+                    <Youtube size={24} />
+                  </a>
+                  <a
+                    href="https://tn.linkedin.com/company/maisonduweb"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="social_icon"
+                  >
+                    <Linkedin size={24} />
+                  </a>
+                  <a
+                    href="https://www.maisonduweb.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="social_icon"
+                  >
+                    <Globe size={24} />
+                  </a>
+                </div>
+                <p className="copyright">
+                  © {currentYear || new Date().getFullYear()} Tous droits
+                  réservés
                 </p>
               </div>
             </div>

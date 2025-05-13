@@ -24,21 +24,25 @@ const Slider = () => (
                     Gérez vos projets efficacement et optimisez votre workflow
                   </h3>
                   <p>
-                    Centralisez tout votre contenu, même dans une équipe distribuée.
+                    Centralisez tout votre contenu, même dans une équipe
+                    distribuée.
                   </p>
-               
                 </div>
                 <SignedOut>
                   <Link href="/sign-in" className="boxed-btn3">
-                    <i className="fa fa-phone"></i> Inscrivez-vous, c'est gratuit !
+                    <i className="fa fa-phone"></i> Inscrivez-vous, c'est
+                    gratuit !
                   </Link>
                 </SignedOut>
                 <SignedIn>
                   <Link href="/home" className="boxed-btn3">
-                    <i className="fa fa-phone"></i> Accedée a vos tableaux
+                    <i className="fa fa-phone"></i> Accédez à vos tableaux
                   </Link>
                 </SignedIn>
-                <div className="ilstrator_thumb">
+                <div
+                  className="ilstrator_thumb"
+                  style={{ background: "transparent" }}
+                >
                   <video
                     width="100%"
                     height="auto"
@@ -46,6 +50,7 @@ const Slider = () => (
                     muted
                     loop
                     playsInline
+                    style={{ background: "transparent" }}
                   >
                     <source src="img/logo/video.mp4" type="video/mp4" />
                     Votre navigateur ne supporte pas la lecture de vidéos.

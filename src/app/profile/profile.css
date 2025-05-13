@@ -114,7 +114,7 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
+    animation: fadeIn 0.3s ease-out forwards;
   }
 
   .animate-slide-in {
@@ -134,11 +134,10 @@
   }
 }
 
-/* Animation for fade-in effect */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -155,26 +154,6 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-/* Custom scrollbar for better UX */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(155, 133, 246, 0.5);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(155, 133, 246, 0.7);
 }
 
 .scrollbar-thin {
@@ -217,44 +196,6 @@
 
 .dark .prose pre {
   @apply bg-muted/40;
-}
-
-/* Chart tooltip styling */
-.recharts-tooltip-wrapper {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
-}
-
-.recharts-default-tooltip {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border: 1px solid rgba(155, 133, 246, 0.3) !important;
-  border-radius: 6px !important;
-}
-
-/* Dark mode chart adjustments */
-.dark .recharts-cartesian-grid line,
-.dark .recharts-cartesian-axis-line {
-  stroke: rgba(255, 255, 255, 0.1);
-}
-
-.dark .recharts-cartesian-axis-tick-value {
-  fill: rgba(255, 255, 255, 0.7);
-}
-
-.dark .recharts-legend-item-text {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-.dark .recharts-default-tooltip {
-  background-color: rgba(30, 30, 30, 0.95) !important;
-  border: 1px solid rgba(155, 133, 246, 0.3) !important;
-  color: white !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .recharts-responsive-container {
-    height: 250px !important;
-  }
 }
 
 /* Animation pour les boutons et interactions */

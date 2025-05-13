@@ -1,7 +1,8 @@
 "use client"
 
+import { formatDateFr, translateStatus } from "@/lib/utils"
+import DashboardCard from "./DashboardCard"
 import type { Task, Project } from "@/app/projects/types/dashboard"
-import { translateStatus, formatDateFr } from "@/lib/utils"
 
 interface PriorityTaskListProps {
   tasks: Task[]
@@ -9,56 +10,70 @@ interface PriorityTaskListProps {
   onTaskClick: (taskId: number) => void
 }
 
-export default function PriorityTaskList({ tasks, projects, onTaskClick }: PriorityTaskListProps) {
-  // Filter to only high priority tasks and sort by due date
-  const priorityTasks = tasks
-    .filter((task) => task.priority === "HIGH")
-    .sort((a, b) => {
-      if (!a.dueDate) return 1
-      if (!b.dueDate) return -1
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    })
-    .slice(0, 5) // Limit to top 5
+const PriorityTaskList = ({ tasks, projects, onTaskClick }: PriorityTaskListProps) => {
+  // Trier les tâches par priorité (URGENT d'abord, puis HIGH)
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.priority === "URGENT" && b.priority !== "URGENT") return -1
+    if (a.priority !== "URGENT" && b.priority === "URGENT") return 1
+    return 0
+  })
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-medium mb-4 flex items-center">
-        <span className="h-3 w-3 rounded-full bg-red-500 mr-2"></span>
-        Tâches prioritaires
-      </h3>
-
-      <div className="space-y-3 max-h-[300px] overflow-y-auto">
-        {priorityTasks.length > 0 ? (
-          priorityTasks.map((task) => {
+    <DashboardCard title="Tâches prioritaires et urgentes">
+      <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+        {sortedTasks.length > 0 ? (
+          sortedTasks.map((task) => {
             const project = projects.find((p) => p.id === task.projectId)
             return (
               <div
                 key={task.id}
-                className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                className="flex items-start gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => onTaskClick(task.id)}
               >
-                <div className="flex justify-between items-start">
-                  <h4 className="font-medium text-gray-900 dark:text-gray-100">{task.title}</h4>
-                  <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                    {translateStatus(task.priority)}
-                  </span>
-                </div>
-                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  <p className="line-clamp-1">{task.description || "Aucune description"}</p>
-                </div>
-                <div className="mt-2 flex justify-between items-center text-xs">
-                  <span>{project?.title || "Projet inconnu"}</span>
-                  <span>{formatDateFr(task.dueDate)}</span>
+                <div
+                  className={`mt-1 h-3 w-3 flex-shrink-0 rounded-full ${
+                    task.priority === "URGENT"
+                      ? "bg-red-500"
+                      : task.priority === "HIGH"
+                        ? "bg-orange-500"
+                        : task.priority === "MEDIUM"
+                          ? "bg-amber-500"
+                          : "bg-green-500"
+                  }`}
+                />
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.title}</h4>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {project ? project.title : "Projet inconnu"}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        task.priority === "URGENT"
+                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                          : task.priority === "HIGH"
+                            ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                            : task.priority === "MEDIUM"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                              : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      }`}
+                    >
+                      {translateStatus(task.priority)}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">Échéance: {formatDateFr(task.dueDate)}</div>
                 </div>
               </div>
             )
           })
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>Aucune tâche prioritaire</p>
+          <div className="flex flex-col items-center justify-center h-[250px] text-gray-500">
+            <p className="text-center">Aucune tâche prioritaire ou urgente</p>
           </div>
         )}
       </div>
-    </div>
+    </DashboardCard>
   )
 }
+
+export default PriorityTaskList

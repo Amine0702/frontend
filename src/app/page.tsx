@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation"
+import LandinPage from "@/app/landing/page";
 
-export default function Home() {
-  redirect("/landing") // Redirige vers /dashboard au lieu de la landing page
+export default function Page() {
+  return <LandinPage />;
 }

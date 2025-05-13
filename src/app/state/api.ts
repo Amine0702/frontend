@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react"
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const api = createApi({
   reducerPath: "api",
@@ -6,17 +6,26 @@ export const api = createApi({
     baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
     prepareHeaders: (headers, { getState }) => {
       // Récupérer l'ID utilisateur de Clerk depuis le localStorage
-      const clerkUserId = localStorage.getItem("currentUserId")
+      const clerkUserId = localStorage.getItem("currentUserId");
 
       // Ajouter l'ID utilisateur de Clerk aux headers
       if (clerkUserId) {
-        headers.set("X-Clerk-User-Id", clerkUserId)
+        headers.set("X-Clerk-User-Id", clerkUserId);
       }
 
-      return headers
+      return headers;
     },
   }),
-  tagTypes: ["Projects", "Tasks", "User", "Columns", "Reports", "Teams", "TeamMembers", "ProjectStats"],
+  tagTypes: [
+    "Projects",
+    "Tasks",
+    "User",
+    "Columns",
+    "Reports",
+    "Teams",
+    "TeamMembers",
+    "ProjectStats",
+  ],
   endpoints: (builder) => ({
     // User endpoints
     createUser: builder.mutation({
@@ -40,6 +49,23 @@ export const api = createApi({
         method: "PUT",
         body: profileData,
       }),
+      invalidatesTags: ["User"],
+    }),
+
+    // Ajouter cette nouvelle mutation dans la section des endpoints, juste après updateUserProfile:
+    uploadProfilePicture: builder.mutation({
+      query: ({ clerkUserId, file }) => {
+        const formData = new FormData();
+        formData.append("profile_picture", file);
+
+        return {
+          url: `/users/${clerkUserId}/upload-profile-picture`,
+          method: "POST",
+          body: formData,
+          // Désactiver la transformation automatique du corps de la requête
+          formData: true,
+        };
+      },
       invalidatesTags: ["User"],
     }),
 
@@ -70,6 +96,24 @@ export const api = createApi({
       providesTags: ["User"],
     }),
 
+    // Add these to the existing endpoints
+    inviteUser: builder.mutation<any, { email: string; role: string }>({
+      query: (data) => ({
+        url: "/users/invite",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    getPendingInvitations: builder.query<any, void>({
+      query: () => "/users/invitations",
+    }),
+    cancelInvitation: builder.mutation<any, number>({
+      query: (id) => ({
+        url: `/users/invitations/${id}`,
+        method: "DELETE",
+      }),
+    }),
+
     // Project endpoints
     getUserProjects: builder.query({
       query: (clerkUserId) => `/projects/user/${clerkUserId}`,
@@ -92,6 +136,21 @@ export const api = createApi({
         { type: "Tasks", id },
         { type: "Columns", id },
       ],
+    }),
+
+    // Ajouter l'endpoint pour la suppression de projet
+    deleteProject: builder.mutation<
+      { message: string; success: boolean },
+      string
+    >({
+      query: (id) => ({
+        url: `/projects/${id}`,
+        method: "DELETE",
+        headers: {
+          "X-Clerk-User-Id": localStorage.getItem("currentUserId") || "",
+        },
+      }),
+      invalidatesTags: ["Projects"],
     }),
 
     // Accept project invitation
@@ -136,7 +195,10 @@ export const api = createApi({
         method: "POST",
         body: taskData,
       }),
-      invalidatesTags: (result, error, { column_id }) => [{ type: "Tasks" }, { type: "Columns" }],
+      invalidatesTags: (result, error, { column_id }) => [
+        { type: "Tasks" },
+        { type: "Columns" },
+      ],
     }),
 
     // Nouvelle mutation pour générer une tâche avec l'IA
@@ -189,22 +251,26 @@ export const api = createApi({
         method: "POST",
         body: commentData,
       }),
-      invalidatesTags: (result, error, { taskId }) => [{ type: "Tasks", id: taskId }],
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "Tasks", id: taskId },
+      ],
     }),
 
     addAttachment: builder.mutation({
       query: ({ taskId, file, name }) => {
-        const formData = new FormData()
-        formData.append("file", file)
-        if (name) formData.append("name", name)
+        const formData = new FormData();
+        formData.append("file", file);
+        if (name) formData.append("name", name);
 
         return {
           url: `/tasks/${taskId}/attachments`,
           method: "POST",
           body: formData,
-        }
+        };
       },
-      invalidatesTags: (result, error, { taskId }) => [{ type: "Tasks", id: taskId }],
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "Tasks", id: taskId },
+      ],
     }),
 
     // Team endpoints
@@ -214,12 +280,12 @@ export const api = createApi({
         params: params,
       }),
       transformResponse: (response: unknown) => {
-        console.log("Raw teams response:", response)
+        console.log("Raw teams response:", response);
         // Vérifier si response est un objet et s'il a une propriété data
         if (response && typeof response === "object" && "data" in response) {
-          return (response as { data: any }).data
+          return (response as { data: any }).data;
         }
-        return response
+        return response;
       },
       providesTags: ["Teams"],
     }),
@@ -266,7 +332,9 @@ export const api = createApi({
         method: "POST",
         body: { member_ids: memberIds },
       }),
-      invalidatesTags: (result, error, { teamId }) => [{ type: "Teams", id: teamId }],
+      invalidatesTags: (result, error, { teamId }) => [
+        { type: "Teams", id: teamId },
+      ],
     }),
 
     removeTeamMembers: builder.mutation({
@@ -275,7 +343,9 @@ export const api = createApi({
         method: "DELETE",
         body: { member_ids: memberIds },
       }),
-      invalidatesTags: (result, error, { teamId }) => [{ type: "Teams", id: teamId }],
+      invalidatesTags: (result, error, { teamId }) => [
+        { type: "Teams", id: teamId },
+      ],
     }),
 
     exportTeamMembers: builder.query({
@@ -349,20 +419,22 @@ export const api = createApi({
 
     generateProjectReport: builder.mutation({
       query: ({ projectId, reportData }) => ({
-        url: `/projects/${projectId}/reports`,
+        url: projectId ? `/projects/${projectId}/reports` : "/projects/reports",
         method: "POST",
         body: reportData,
       }),
-      invalidatesTags: (result, error, { projectId }) => [{ type: "Reports" }, { type: "Projects", id: projectId }],
+      invalidatesTags: ["Reports"],
     }),
 
     scheduleProjectReport: builder.mutation({
       query: ({ projectId, scheduleData }) => ({
-        url: `/projects/${projectId}/reports/schedule`,
+        url: projectId
+          ? `/projects/${projectId}/reports/schedule`
+          : "/projects/reports/schedule",
         method: "POST",
         body: scheduleData,
       }),
-      invalidatesTags: (result, error, { projectId }) => [{ type: "Reports" }, { type: "Projects", id: projectId }],
+      invalidatesTags: ["Reports"],
     }),
 
     getReportHistory: builder.query({
@@ -383,12 +455,18 @@ export const api = createApi({
     // Nouveaux endpoints pour les statistiques d'équipe dans les rapports
     getTeamPerformance: builder.query({
       query: (teamId) => `/teams/${teamId}/performance`,
-      providesTags: (result, error, id) => [{ type: "Teams", id }, { type: "ProjectStats" }],
+      providesTags: (result, error, id) => [
+        { type: "Teams", id },
+        { type: "ProjectStats" },
+      ],
     }),
 
     getTeamMemberPerformance: builder.query({
       query: (memberId) => `/team-members/${memberId}/performance`,
-      providesTags: (result, error, id) => [{ type: "TeamMembers", id }, { type: "ProjectStats" }],
+      providesTags: (result, error, id) => [
+        { type: "TeamMembers", id },
+        { type: "ProjectStats" },
+      ],
     }),
 
     // Endpoint pour obtenir les statistiques combinées pour les rapports
@@ -428,7 +506,10 @@ export const api = createApi({
         method: "POST",
         body: { invitations },
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: "Projects", id }, { type: "Teams" }],
+      invalidatesTags: (result, error, { id }) => [
+        { type: "Projects", id },
+        { type: "Teams" },
+      ],
     }),
 
     // Add this new endpoint in the endpoints object inside createApi
@@ -436,8 +517,18 @@ export const api = createApi({
       query: () => `/ai/generated-tasks`,
       providesTags: ["Tasks"],
     }),
+    removeMemberFromProject: builder.mutation({
+      query: ({ projectId, memberId }) => ({
+        url: `/projects/${projectId}/members/${memberId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { projectId }) => [
+        { type: "Projects", id: projectId },
+        { type: "Teams" },
+      ],
+    }),
   }),
-})
+});
 
 // Add this new endpoint to fetch all teams directly from the backend
 export const useGetAllTeamsQuery = api.injectEndpoints({
@@ -450,7 +541,7 @@ export const useGetAllTeamsQuery = api.injectEndpoints({
       providesTags: ["Teams"],
     }),
   }),
-}).useGetAllTeamsQuery
+}).useGetAllTeamsQuery;
 
 export const {
   useCreateUserMutation,
@@ -511,4 +602,11 @@ export const {
   useInviteUsersMutation,
   // Add this to the export section at the bottom of the file
   useGetAIGeneratedTasksQuery,
-} = api
+  useDeleteProjectMutation,
+  useRemoveMemberFromProjectMutation,
+  // Puis ajouter ce hook à la liste des exports en bas du fichier:
+  useUploadProfilePictureMutation,
+  useInviteUserMutation,
+  useGetPendingInvitationsQuery,
+  useCancelInvitationMutation,
+} = api;

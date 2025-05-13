@@ -1,3 +1,4 @@
+import type { Task } from "@/app/projects/types/dashboard"
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -8,24 +9,25 @@ export function cn(...inputs: ClassValue[]) {
 // Add these utility functions to better handle the Kanban data structure
 
 // Calculate task priority distribution
-export function calculateTaskPriorityDistribution(tasks: any[]) {
+export const calculateTaskPriorityDistribution = (tasks: Task[]) => {
   const priorityCounts = {
+    URGENT: 0,
     HIGH: 0,
     MEDIUM: 0,
     LOW: 0,
   }
 
   tasks.forEach((task) => {
-    const priority = task.priority || "MEDIUM"
-    if (priorityCounts.hasOwnProperty(priority)) {
-      priorityCounts[priority as keyof typeof priorityCounts]++
+    if (priorityCounts[task.priority as keyof typeof priorityCounts] !== undefined) {
+      priorityCounts[task.priority as keyof typeof priorityCounts]++
     }
   })
 
   return [
-    { name: "Haute", count: priorityCounts.HIGH, color: "#ef4444" },
-    { name: "Moyenne", count: priorityCounts.MEDIUM, color: "#f59e0b" },
-    { name: "Basse", count: priorityCounts.LOW, color: "#10b981" },
+    { name: "Urgente", count: priorityCounts.URGENT, color: "#ef4444" }, // Violet pour URGENT
+    { name: "Haute", count: priorityCounts.HIGH, color: "#f97316" }, // Rouge pour HIGH
+    { name: "Moyenne", count: priorityCounts.MEDIUM, color: "#f59e0b" }, // Ambre pour MEDIUM
+    { name: "Basse", count: priorityCounts.LOW, color: "#10b981" }, // Vert pour LOW
   ]
 }
 
@@ -85,19 +87,24 @@ export function getUpcomingTasks(tasks: any[]) {
     .slice(0, 5) // Get top 5 upcoming tasks
 }
 
-// Format date to French format
-export function formatDateFr(dateString: string) {
+// Ajoutons ou modifions la fonction formatDateFr pour qu'elle gère mieux les valeurs nulles ou undefined
+
+export const formatDateFr = (dateString: string | null | undefined): string => {
   if (!dateString) return "Non définie"
 
   try {
     const date = new Date(dateString)
-    return new Intl.DateTimeFormat("fr-FR", {
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) return "Non définie"
+
+    return date.toLocaleDateString("fr-FR", {
       day: "numeric",
-      month: "short",
+      month: "long",
       year: "numeric",
-    }).format(date)
-  } catch (e) {
-    return "Date invalide"
+    })
+  } catch (error) {
+    console.error("Erreur lors du formatage de la date:", error)
+    return "Non définie"
   }
 }
 
@@ -110,6 +117,7 @@ export function translateStatus(status: string) {
     COMPLETED: "Terminé",
 
     // Priority translations
+    URGENT: "Urgente",
     HIGH: "Haute",
     MEDIUM: "Moyenne",
     LOW: "Basse",

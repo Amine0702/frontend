@@ -1,6 +1,6 @@
-"use client"
-import "./home.css"
-import { useState, useEffect } from "react"
+"use client";
+import "./home.css";
+import { useState, useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -13,407 +13,558 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts"
-import { PlusSquare, CalendarDays, BarChart3, CheckCircle, Clock, Info, FileText } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/app/(components)/ui/dialog"
-import { Button } from "@/app/(components)/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/app/(components)/ui/card"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/app/(components)/ui/sheet"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/(components)/ui/table"
-import { useToast } from "@/app/(components)/ui/use-toast"
-import StatCard from "@/app/(components)/StatCard"
-import DashboardCard from "@/app/(components)/DashboardCard"
-import PriorityTaskList from "@/app/(components)/PriorityTaskList"
-import TaskEditor from "@/app/(components)/TaskEditor"
-import type { Task, Project } from "@/app/projects/types/dashboard"
+} from "recharts";
 import {
-  calculateTaskPriorityDistribution,
+  PlusSquare,
+  CalendarDays,
+  BarChart3,
+  Clock,
+  Info,
+  FileText,
+  AlertCircle,
+  ClipboardCheck,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/(components)/ui/dialog";
+import { Button } from "@/app/(components)/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/app/(components)/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/app/(components)/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/app/(components)/ui/table";
+import { useToast } from "@/app/(components)/ui/use-toast";
+import StatCard from "@/app/(components)/StatCard";
+import DashboardCard from "@/app/(components)/DashboardCard";
+import PriorityTaskList from "@/app/(components)/PriorityTaskList";
+import TaskEditor from "@/app/(components)/TaskEditor";
+import type { Task, Project } from "@/app/projects/types/dashboard";
+import {
   calculateProjectStatus,
-  calculateDashboardStats,
   getUpcomingTasks,
   formatDateFr,
   translateStatus,
   getProjectById,
   getStatusColorClass,
-} from "@/lib/utils"
-import { formatISO } from "date-fns"
-import { useUser } from "@clerk/nextjs"
-import { useCreateProjectMutation, useGetUserProjectsQuery } from "../state/api"
-
-// Formulaire de création de projet
-const NewProjectForm = ({
-  onClose,
-  onProjectCreated,
-}: { onClose: () => void; onProjectCreated: (project: Project) => void }) => {
-  const [createProject, { isLoading, isError }] = useCreateProjectMutation()
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-
-  // Gestion de la liste des emails invités
-  const [memberEmail, setMemberEmail] = useState("")
-  const [invitedMembers, setInvitedMembers] = useState<string[]>([])
-
-  // Récupération de l'utilisateur connecté via Clerk
-  const { user, isLoaded } = useUser()
-  if (!isLoaded) return <p>Loading...</p>
-
-  const clerkUserId = user?.id || ""
-
-  const handleAddMember = () => {
-    const trimmedEmail = memberEmail.trim()
-    if (trimmedEmail && !invitedMembers.includes(trimmedEmail)) {
-      setInvitedMembers([...invitedMembers, trimmedEmail])
-      setMemberEmail("")
-    }
-  }
-
-  const handleRemoveMember = (emailToRemove: string) => {
-    setInvitedMembers(invitedMembers.filter((email) => email !== emailToRemove))
-  }
-
-  const handleSubmit = async () => {
-    // Vérification de la complétude du formulaire
-    if (!name || !description || !startDate || !endDate || !clerkUserId) return
-
-    try {
-      const formattedStartDate = formatISO(new Date(startDate), {
-        representation: "complete",
-      })
-      const formattedEndDate = formatISO(new Date(endDate), {
-        representation: "complete",
-      })
-
-      // La méthode .unwrap() permet de récupérer directement l'erreur si la mutation échoue
-      await createProject({
-        name,
-        description,
-        startDate: formattedStartDate,
-        endDate: formattedEndDate,
-        clerkUserId,
-        invitedMembers,
-      }).unwrap()
-
-      onClose() // Fermer la modal après succès
-    } catch (err) {
-      console.error("Erreur lors de la création du projet:", err)
-      // Vous pouvez afficher ici un message d'erreur à l'utilisateur
-    }
-  }
-
-  const isFormValid = () => name && description && startDate && endDate && clerkUserId
-
-  const inputStyles =
-    "w-full rounded border border-gray-300 p-2 shadow-sm dark:border-dark-tertiary dark:bg-dark-tertiary dark:text-white dark:focus:outline-none"
-
-  return (
-    <form
-      className="mt-4 space-y-6"
-      onSubmit={(e) => {
-        e.preventDefault()
-        handleSubmit()
-      }}
-    >
-      <input
-        type="text"
-        className={inputStyles}
-        placeholder="Project Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <textarea
-        className={inputStyles}
-        placeholder="Project Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-2">
-        <input type="date" className={inputStyles} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <input type="date" className={inputStyles} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-      </div>
-
-      {/* Zone pour inviter des membres */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Inviter des membres</label>
-        <div className="flex gap-2 mt-1">
-          <input
-            type="email"
-            placeholder="Email du membre"
-            value={memberEmail}
-            onChange={(e) => setMemberEmail(e.target.value)}
-            className={inputStyles}
-          />
-          <button
-            type="button"
-            onClick={handleAddMember}
-            className="px-3 py-2 rounded-md border border-transparent bg-blue-primary text-base font-medium text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600"
-          >
-            Ajouter
-          </button>
-        </div>
-        {invitedMembers.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {invitedMembers.map((email, index) => (
-              <div key={index} className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-1 text-sm">
-                <span>{email}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMember(email)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <button
-        type="submit"
-        className={`mt-4 flex w-full justify-center rounded-md border border-transparent bg-blue-primary px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-          !isFormValid() || isLoading ? "cursor-not-allowed opacity-50" : ""
-        }`}
-        disabled={!isFormValid() || isLoading}
-      >
-        {isLoading ? "Creating..." : "Create Project"}
-      </button>
-
-      {isError && <p className="text-red-500 mt-2">Une erreur est survenue lors de la création du projet.</p>}
-    </form>
-  )
-}
+} from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
+import { useGetUserProjectsQuery } from "../state/api";
+import ModalNewProject from "@/app/(components)/ModalNewProject";
+import { Badge } from "@/app/(components)/ui/badge";
 
 // Composant principal
 const Index = () => {
-  const { toast } = useToast()
-  const [isModalNewProjectOpen, setIsModalNewProjectOpen] = useState(false)
-  const [animateIn, setAnimateIn] = useState(false)
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
-  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false)
-  const [isProjectsDetailOpen, setIsProjectsDetailOpen] = useState(false)
-  const [isEditingTask, setIsEditingTask] = useState(false)
-  const [filterStatus, setFilterStatus] = useState("all")
-  const [projectFilter, setProjectFilter] = useState<"all" | "active">("all")
-
-  // Données fictives pour démonstration
-  const [staticUser, setStaticUser] = useState({
-    id: "user_123",
-    firstName: "user1",
-    lastName: "Dupont",
-  })
+  const { toast } = useToast();
+  const [isModalNewProjectOpen, setIsModalNewProjectOpen] = useState(false);
+  const [animateIn, setAnimateIn] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+    null,
+  );
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
+  const [isProjectsDetailOpen, setIsProjectsDetailOpen] = useState(false);
+  const [isPendingProjectsOpen, setIsPendingProjectsOpen] = useState(false);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | "active">("all");
 
   // Get the current user
-  const { user, isLoaded } = useUser()
-  const clerkUserId = user?.id || ""
+  const { user, isLoaded } = useUser();
+  const clerkUserId = user?.id || "";
 
   // Fetch user projects from the API
   const {
     data: projectsData,
     isLoading: isLoadingProjects,
     error: projectsError,
+    refetch: refetchProjects,
   } = useGetUserProjectsQuery(clerkUserId, {
     skip: !clerkUserId,
-  })
+  });
 
   // Initialize projects and tasks state
-  const [projects, setProjects] = useState<Project[]>([])
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isDataLoaded, setIsDataLoaded] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
+  const [rejectedProjects, setRejectedProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Fetch pending projects directly from the API
+  useEffect(() => {
+    const fetchPendingProjects = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/api/admin/projects/pending",
+        );
+        if (response.ok) {
+          const data = await response.json();
+          console.log(
+            "Données brutes des projets en attente (API directe):",
+            data,
+          );
+
+          if (data && data.pendingProjects && data.pendingProjects.length > 0) {
+            const formattedPendingProjects = data.pendingProjects.map(
+              (project: any) => ({
+                id: project.id,
+                title: project.name || "Projet sans nom",
+                description:
+                  project.description || "Aucune description disponible",
+                startDate: project.start_date || null,
+                endDate: project.end_date || null,
+                clerkUserId: project.clerk_user_id || "",
+                status: "EN_ATTENTE",
+                progress: 0,
+                isActive: false,
+                createdAt: project.created_at || null,
+                team_members: project.team_members || [],
+              }),
+            );
+
+            console.log(
+              "Projets en attente formatés (API directe):",
+              formattedPendingProjects,
+            );
+            setPendingProjects(formattedPendingProjects);
+          }
+        } else {
+          console.error(
+            "Erreur lors de la récupération des projets en attente:",
+            response.statusText,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération des projets en attente:",
+          error,
+        );
+      }
+    };
+
+    fetchPendingProjects();
+  }, []);
 
   // Process the projects data when it's loaded
   useEffect(() => {
     if (projectsData) {
+      console.log("Données brutes des projets:", projectsData);
+
       // Combine manager and invited projects
-      const allProjects = [...(projectsData.managerProjects || []), ...(projectsData.invitedProjects || [])].map(
-        (project) => ({
+      const allProjects = [
+        ...(projectsData.managerProjects || []),
+        ...(projectsData.invitedProjects || []),
+      ].map((project) => ({
+        id: project.id,
+        title: project.name,
+        description: project.description,
+        startDate: project.start_date,
+        endDate: project.end_date,
+        clerkUserId: project.clerk_user_id,
+        status: "ACTIF", // Par défaut, on considère le projet comme actif
+        progress: calculateProjectProgress(project),
+        isActive: true, // Par défaut, on considère le projet comme actif
+      }));
+
+      // Process rejected projects
+      const rejectedProjectsList = (
+        Array.isArray(projectsData.rejectedProjects)
+          ? projectsData.rejectedProjects
+          : projectsData.rejectedProjects
+            ? [projectsData.rejectedProjects]
+            : []
+      ).map(
+        (project: {
+          id: any;
+          name: any;
+          description: any;
+          start_date: any;
+          end_date: any;
+          clerk_user_id: any;
+        }) => ({
           id: project.id,
           title: project.name,
           description: project.description,
           startDate: project.start_date,
           endDate: project.end_date,
           clerkUserId: project.clerk_user_id,
-          status: project.end_date ? "TERMINÉ" : "ACTIF",
-          progress: calculateProjectProgress(project), // Calculate actual progress
+          status: "REJETÉ",
+          progress: 0,
+          isActive: false,
         }),
-      )
+      );
 
-      setProjects(allProjects)
+      setProjects(allProjects);
+      setRejectedProjects(rejectedProjectsList);
 
       // Fetch tasks for each project
       const fetchAllProjectDetails = async () => {
-        const allTasks: Task[] = []
+        const allTasks: Task[] = [];
+        let currentUserTeamMemberId: number | null = null;
 
         // For each project, fetch its details including tasks
-        for (const project of allProjects) {
+        for (let index = 0; index < allProjects.length; index++) {
+          const project = allProjects[index];
           try {
-            const projectDetails = await fetch(`http://localhost:8000/api/projects/${project.id}`).then((res) =>
-              res.json(),
-            )
+            const projectDetails = await fetch(
+              `http://localhost:8000/api/projects/${project.id}`,
+            ).then((res) => res.json());
 
-            if (projectDetails && projectDetails.columns) {
-              // Extract tasks from all columns
-              projectDetails.columns.forEach((column: { tasks: any[]; title: string }) => {
-                if (column.tasks && column.tasks.length > 0) {
-                  const mappedTasks = column.tasks.map(
-                    (task: {
-                      id: any
-                      title: any
-                      description: any
-                      priority: any
-                      due_date: any
-                      assignee_id: any
-                      status: any
-                    }) => ({
-                      id: task.id,
-                      title: task.title,
-                      description: task.description,
-                      // Map the status based on column title or task status
-                      status: task.status || column.title || "À faire",
-                      priority: mapPriority(task.priority), // Convert priority format
-                      dueDate: task.due_date,
-                      userId: task.assignee_id,
-                      projectId: project.id,
-                      columnName: column.title,
-                    }),
-                  )
-                  allTasks.push(...mappedTasks)
+            if (projectDetails) {
+              // Find the current user's team member ID
+              if (projectDetails.team_members) {
+                const currentUserMember = projectDetails.team_members.find(
+                  (member: any) => member.clerk_user_id === clerkUserId,
+                );
+
+                if (currentUserMember) {
+                  currentUserTeamMemberId = currentUserMember.id;
                 }
-              })
+              }
+
+              // Puis, dans la fonction fetchAllProjectDetails, après avoir récupéré les détails du projet, ajoutons:
+              if (projectDetails && projectDetails.columns) {
+                let allTasksCompleted = true;
+                let hasTasks = false;
+
+                // Vérifier si toutes les tâches sont dans une colonne "terminé"
+                projectDetails.columns.forEach(
+                  (column: { tasks: any[]; title: string }) => {
+                    if (column.tasks && column.tasks.length > 0) {
+                      hasTasks = true;
+                      const isCompletedColumn =
+                        column.title.toLowerCase().includes("terminé") ||
+                        column.title.toLowerCase().includes("termine");
+
+                      // Si on trouve des tâches dans une colonne qui n'est pas "terminé", le projet est actif
+                      if (!isCompletedColumn) {
+                        allTasksCompleted = false;
+                      }
+                    }
+                  },
+                );
+
+                // Si le projet a des tâches et qu'elles ne sont pas toutes terminées, il est actif
+                if (hasTasks) {
+                  const projectIndex = allProjects.findIndex(
+                    (p) => p.id === project.id,
+                  );
+                  if (projectIndex !== -1) {
+                    allProjects[projectIndex].status = allTasksCompleted
+                      ? "TERMINÉ"
+                      : "ACTIF";
+                    allProjects[projectIndex].isActive = !allTasksCompleted;
+                  }
+                }
+              }
+
+              if (projectDetails.columns) {
+                let hasNonCompletedTasks = false;
+
+                // Extract tasks from all columns
+                projectDetails.columns.forEach(
+                  (column: { tasks: any[]; title: string }) => {
+                    // Check if this column is not a "terminé" column
+                    const isNotCompletedColumn =
+                      !column.title.toLowerCase().includes("terminé") &&
+                      !column.title.toLowerCase().includes("termine");
+
+                    // If we find a non-completed column with tasks, mark the project as active
+                    if (
+                      isNotCompletedColumn &&
+                      column.tasks &&
+                      column.tasks.length > 0
+                    ) {
+                      hasNonCompletedTasks = true;
+                    }
+
+                    if (column.tasks && column.tasks.length > 0) {
+                      const mappedTasks = column.tasks.map(
+                        (task: {
+                          id: any;
+                          title: any;
+                          description: any;
+                          priority: any;
+                          due_date: any;
+                          assignee_id: any;
+                          status: any;
+                        }) => ({
+                          id: task.id,
+                          title: task.title,
+                          description: task.description,
+                          status: task.status || column.title || "À faire",
+                          priority: mapPriority(task.priority),
+                          dueDate: task.due_date,
+                          userId: task.assignee_id,
+                          projectId: project.id,
+                          columnName: column.title,
+                        }),
+                      );
+                      allTasks.push(...mappedTasks);
+                    }
+                  },
+                );
+
+                // Update the project's active status based on task completion
+                allProjects[index] = {
+                  ...allProjects[index],
+                  isActive: hasNonCompletedTasks,
+                  status: hasNonCompletedTasks ? "ACTIF" : "TERMINÉ",
+                };
+              }
             }
           } catch (error) {
-            console.error(`Error fetching details for project ${project.id}:`, error)
+            console.error(
+              `Error fetching details for project ${project.id}:`,
+              error,
+            );
           }
         }
 
-        setTasks(allTasks)
-        setIsDataLoaded(true)
-      }
+        // Update projects with the correct active status
+        setProjects(allProjects);
 
-      fetchAllProjectDetails()
+        // Filter tasks to only include those assigned to the current user
+        const userAssignedTasks = allTasks.filter(
+          (task) =>
+            task.userId &&
+            currentUserTeamMemberId &&
+            task.userId === currentUserTeamMemberId,
+        );
+
+        setTasks(userAssignedTasks);
+        setIsDataLoaded(true);
+      };
+
+      fetchAllProjectDetails();
     }
-  }, [projectsData, clerkUserId])
-
-  // Add these helper functions after the useEffect but before the next hook or function
+  }, [projectsData, clerkUserId]);
 
   // Function to calculate project progress based on task completion
   const calculateProjectProgress = (project: any): number => {
-    if (project.end_date) return 100
+    if (project.end_date) return 100;
 
     // If we have columns data, calculate based on completed tasks
     if (project.columns && project.columns.length > 0) {
-      const allTasks = project.columns.flatMap((col: any) => col.tasks || [])
-      const totalTasks = allTasks.length
+      const allTasks = project.columns.flatMap((col: any) => col.tasks || []);
+      const totalTasks = allTasks.length;
 
-      if (totalTasks === 0) return 0
+      if (totalTasks === 0) return 0;
 
       const completedTasks = allTasks.filter(
-        (task: any) => task.status === "terminé" || task.column_title === "terminé" || task.column_title === "Terminé",
-      ).length
+        (task: any) =>
+          task.status === "terminé" ||
+          task.column_title === "terminé" ||
+          task.column_title === "Terminé",
+      ).length;
 
-      return Math.round((completedTasks / totalTasks) * 100)
+      return Math.round((completedTasks / totalTasks) * 100);
     }
 
     // Default progress if we can't calculate
-    return 30
-  }
+    return 30;
+  };
 
   // Function to standardize priority values
   const mapPriority = (priority: string): string => {
-    if (!priority) return "MEDIUM"
+    if (!priority) return "MEDIUM";
 
-    const priorityLower = priority.toLowerCase()
-    if (priorityLower.includes("haute") || priorityLower.includes("high") || priorityLower.includes("urgente")) {
-      return "HIGH"
-    } else if (priorityLower.includes("basse") || priorityLower.includes("low")) {
-      return "LOW"
+    const priorityLower = priority.toLowerCase();
+    if (priorityLower.includes("urgente")) {
+      return "URGENT";
+    } else if (
+      priorityLower.includes("haute") ||
+      priorityLower.includes("high")
+    ) {
+      return "HIGH";
+    } else if (
+      priorityLower.includes("basse") ||
+      priorityLower.includes("low")
+    ) {
+      return "LOW";
     } else {
-      return "MEDIUM"
+      return "MEDIUM";
     }
-  }
+  };
+
+  // Function to calculate task completion rate
+  const calculateTaskCompletionRate = (tasks: Task[]): number => {
+    if (tasks.length === 0) return 0;
+
+    const completedTasks = tasks.filter(
+      (task) =>
+        task.status.toLowerCase().includes("terminé") ||
+        task.status.toLowerCase().includes("termine") ||
+        (task.columnName &&
+          (task.columnName.toLowerCase().includes("terminé") ||
+            task.columnName.toLowerCase().includes("termine"))),
+    ).length;
+
+    return Math.round((completedTasks / tasks.length) * 100);
+  };
+
+  const calculateDashboardStats = (tasks: Task[], projects: Project[]) => {
+    // Identifier les tâches urgentes (priorité URGENT ou HIGH)
+    const urgentTasks = tasks.filter(
+      (t) => t.priority === "URGENT" || t.priority === "HIGH",
+    );
+
+    return {
+      activeProjects: projects.filter((p) => p.isActive).length,
+      totalProjects: projects.length,
+      urgentTasks: urgentTasks.length,
+      taskCompletionRate: calculateTaskCompletionRate(tasks),
+      pendingProjects: pendingProjects.length,
+    };
+  };
 
   useEffect(() => {
-    setAnimateIn(true)
-  }, [])
+    setAnimateIn(true);
+  }, []);
 
   // Add a loading state
   if (!isLoaded || isLoadingProjects || !isDataLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
           <p className="mt-4 text-lg">Chargement de vos données...</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Handle error state
   if (projectsError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Erreur de chargement</h2>
-          <p className="mb-4">Impossible de charger vos projets. Veuillez réessayer plus tard.</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="max-w-md rounded-lg bg-white p-6 text-center shadow-lg dark:bg-gray-800">
+          <h2 className="mb-4 text-2xl font-bold text-red-600">
+            Erreur de chargement
+          </h2>
+          <p className="mb-4">
+            Impossible de charger vos projets. Veuillez réessayer plus tard.
+          </p>
           <Button onClick={() => window.location.reload()}>Réessayer</Button>
         </div>
       </div>
-    )
+    );
   }
 
   // Animation à l'entrée
 
   // Ajouter un nouveau projet
   const handleAddProject = (newProject: Project) => {
-    setProjects((prev) => [...prev, newProject])
+    setProjects((prev) => [...prev, newProject]);
     // Refresh the projects data
     setTimeout(() => {
       if (clerkUserId) {
-        // This will trigger a refetch of the projects
-        // The useGetUserProjectsQuery hook will automatically refetch
+        refetchProjects();
       }
-    }, 500)
-  }
+    }, 500);
+  };
 
   // Mettre à jour une tâche
   const handleUpdateTask = (updatedTask: Task) => {
-    setTasks((prev) => prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)))
+    setTasks((prev) =>
+      prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    );
     toast({
       title: "Tâche mise à jour",
       description: "Les modifications ont été enregistrées avec succès.",
-    })
-  }
+    });
+  };
 
   // Préparation des données
-  const taskPriorityData = calculateTaskPriorityDistribution(tasks)
-  const projectStatusData = calculateProjectStatus(projects)
-  const dashboardStats = calculateDashboardStats(tasks, projects)
-  const upcomingTasks = getUpcomingTasks(tasks)
+  const projectStatusData = calculateProjectStatus(projects);
+  const dashboardStats = calculateDashboardStats(tasks, projects);
+  const upcomingTasks = getUpcomingTasks(tasks); // This now only includes the user's tasks
+
+  // Préparation des données pour la distribution des priorités
+  const taskPriorityData = (() => {
+    const priorityCounts = {
+      URGENT: 0,
+      HIGH: 0,
+      MEDIUM: 0,
+      LOW: 0,
+    };
+
+    tasks.forEach((task) => {
+      if (
+        priorityCounts[task.priority as keyof typeof priorityCounts] !==
+        undefined
+      ) {
+        priorityCounts[task.priority as keyof typeof priorityCounts]++;
+      }
+    });
+
+    return [
+      { name: "Urgente", count: priorityCounts.URGENT, color: "#ef4444" }, // Rouge pour URGENT
+      { name: "Haute", count: priorityCounts.HIGH, color: "#f97316" }, // Orange pour HIGH
+      { name: "Moyenne", count: priorityCounts.MEDIUM, color: "#f59e0b" }, // Ambre pour MEDIUM
+      { name: "Basse", count: priorityCounts.LOW, color: "#10b981" }, // Vert pour LOW
+    ];
+  })();
+
+  // Obtenir les tâches urgentes (priorité URGENT ou HIGH)
+  const urgentTasks = tasks.filter(
+    (task) => task.priority === "URGENT" || task.priority === "HIGH",
+  );
 
   // Filtrer les tâches en fonction du statut
   const filteredTasks =
     filterStatus === "all"
       ? tasks
-      : filterStatus === "HIGH"
-        ? tasks.filter((task) => task.priority === filterStatus)
+      : filterStatus === "urgent"
+        ? urgentTasks // Utiliser directement les tâches urgentes
         : tasks.filter(
             (task) =>
               task.status.toLowerCase() === filterStatus.toLowerCase() ||
               task.columnName?.toLowerCase() === filterStatus.toLowerCase(),
-          )
+          );
 
   // Filtrer les projets
-  const filteredProjects = projectFilter === "all" ? projects : projects.filter((project) => !project.endDate)
+  const filteredProjects =
+    projectFilter === "all"
+      ? projects
+      : projects.filter((project) => project.isActive);
 
   // Obtenir les détails d'une tâche sélectionnée
-  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) : null
-  const selectedTaskProject = selectedTask ? getProjectById(selectedTask.projectId, projects) : null
+  const selectedTask = selectedTaskId
+    ? tasks.find((t) => t.id === selectedTaskId)
+    : null;
+  const selectedTaskProject = selectedTask
+    ? getProjectById(selectedTask.projectId, projects)
+    : null;
 
   // Obtenir les détails d'un projet sélectionné
-  const selectedProject = selectedProjectId ? projects.find((p) => p.id === selectedProjectId) : null
-  const projectTasks = selectedProject ? tasks.filter((t) => t.projectId === selectedProject.id) : []
+  const selectedProject = selectedProjectId
+    ? projects.find((p) => p.id === selectedProjectId)
+    : null;
+  const projectTasks = selectedProject
+    ? tasks.filter((t) => t.projectId === selectedProject.id)
+    : [];
 
   // Colonnes pour le tableau des tâches
   const taskColumns = [
@@ -421,43 +572,62 @@ const Index = () => {
     { id: "status", span: "Statut", minWidth: 100 },
     { id: "priority", span: "Priorité", minWidth: 100 },
     { id: "dueDate", span: "Échéance", minWidth: 120 },
-  ]
+  ];
 
   // Fonction pour afficher les détails du projet en fonction du filtre
   const showProjectDetails = (filter: "active" | "all") => {
-    setProjectFilter(filter)
-    setIsProjectsDetailOpen(true)
-  }
+    setProjectFilter(filter);
+    setIsProjectsDetailOpen(true);
+  };
+
+  // Fonction pour formater la date de création
+  const formatCreationDate = (project: any) => {
+    if (project.createdAt) {
+      return formatDateFr(project.createdAt);
+    } else if (project.created_at) {
+      return formatDateFr(project.created_at);
+    } else if (project.startDate) {
+      return formatDateFr(project.startDate);
+    } else if (project.start_date) {
+      return formatDateFr(project.start_date);
+    } else {
+      return "Date inconnue";
+    }
+  };
 
   return (
     <div
-      className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-opacity duration-1000 ${animateIn ? "opacity-100" : "opacity-0"}`}
+      className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 transition-opacity duration-1000 dark:from-gray-900 dark:to-gray-800 ${animateIn ? "opacity-100" : "opacity-0"}`}
     >
       {/* En-tête créatif */}
-      <div className="container mx-auto px-4 sm:px-6 py-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+      <div className="container mx-auto px-4 py-6 sm:px-6">
+        <div className="mb-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
+            <h1 className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-3xl font-extrabold text-transparent sm:text-4xl">
               Tableau de Bord
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Bienvenue, {user?.firstName || "Utilisateur"} |{" "}
-            {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+            <p className="mt-1 text-gray-600 dark:text-gray-400">
+              Bienvenue, {user?.firstName || "Utilisateur"} |{" "}
+              {new Date().toLocaleDateString("fr-FR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
             </p>
           </div>
           <div className="flex gap-3">
             <button
-              className="flex items-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 px-5 py-3 text-white shadow-2xl transition transform hover:scale-105"
+              className="flex transform items-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 px-5 py-3 text-white shadow-2xl transition hover:scale-105"
               onClick={() => setIsModalNewProjectOpen(true)}
             >
-              <PlusSquare className="mr-2 h-6 w-6" /> New Project
+              <PlusSquare className="mr-2 h-6 w-6" /> Nouvelle Projet
             </button>
           </div>
         </div>
 
         {/* Statistiques rapides */}
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 opacity-0 animate-fade-in"
+          className="mb-8 grid animate-fade-in grid-cols-1 gap-4 opacity-0 sm:grid-cols-2 lg:grid-cols-4"
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
         >
           <StatCard
@@ -469,11 +639,18 @@ const Index = () => {
             onClick={() => showProjectDetails("active")}
           />
           <StatCard
-            title="Taux de complétion"
-            value={`${dashboardStats.taskCompletionRate}%`}
-            icon={<CheckCircle size={24} />}
-            trend={{ value: 5, isPositive: true }}
-            className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20"
+            title="Projets en attente"
+            value={dashboardStats.pendingProjects}
+            icon={<Clock size={24} />}
+            trend={{
+              value:
+                dashboardStats.pendingProjects > 0
+                  ? dashboardStats.pendingProjects
+                  : 0,
+              isPositive: false,
+            }}
+            className="cursor-pointer bg-gradient-to-br from-violet-50 dark:from-violet-900/20 dark:to-violet-800/20"
+            onClick={() => setIsPendingProjectsOpen(true)}
           />
           <StatCard
             title="Tâches urgentes"
@@ -482,8 +659,11 @@ const Index = () => {
             trend={{ value: 3, isPositive: false }}
             className="cursor-pointer"
             onClick={() => {
-              setFilterStatus("HIGH")
-              window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })
+              setFilterStatus("urgent");
+              window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: "smooth",
+              });
             }}
           />
           <StatCard
@@ -496,10 +676,10 @@ const Index = () => {
         </div>
 
         {/* Grille de cartes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-12">
           {/* Distribution des tâches par priorité */}
           <div
-            className="md:col-span-1 xl:col-span-6 opacity-0 animate-fade-in"
+            className="animate-fade-in opacity-0 md:col-span-1 xl:col-span-6"
             style={{ animationDelay: "0.4s", animationFillMode: "forwards" }}
           >
             <DashboardCard title="Distribution des priorités">
@@ -531,7 +711,7 @@ const Index = () => {
 
           {/* Statut des projets */}
           <div
-            className="md:col-span-1 xl:col-span-6 opacity-0 animate-fade-in"
+            className="animate-fade-in opacity-0 md:col-span-1 xl:col-span-6"
             style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
           >
             <DashboardCard title="Statut des projets">
@@ -543,7 +723,9 @@ const Index = () => {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) =>
+                      `${name}: ${(percent * 100).toFixed(0)}%`
+                    }
                   >
                     {projectStatusData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -566,41 +748,49 @@ const Index = () => {
 
           {/* Tâches à venir */}
           <div
-            className="md:col-span-1 xl:col-span-6 opacity-0 animate-fade-in"
+            className="animate-fade-in opacity-0 md:col-span-1 xl:col-span-6"
             style={{ animationDelay: "0.8s", animationFillMode: "forwards" }}
           >
             <DashboardCard title="Tâches à venir (7 jours)">
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+              <div className="max-h-[300px] space-y-4 overflow-y-auto pr-2">
                 {upcomingTasks.length > 0 ? (
                   upcomingTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="flex items-start gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="flex cursor-pointer items-start gap-3 rounded-lg bg-gray-50 p-3 transition-colors hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
                       onClick={() => {
-                        setSelectedTaskId(task.id)
-                        setIsTaskDetailsOpen(true)
+                        setSelectedTaskId(task.id);
+                        setIsTaskDetailsOpen(true);
                       }}
                     >
                       <div
                         className={`mt-1 h-3 w-3 flex-shrink-0 rounded-full ${
-                          task.priority === "HIGH"
+                          task.priority === "URGENT"
                             ? "bg-red-500"
-                            : task.priority === "MEDIUM"
-                              ? "bg-amber-500"
-                              : "bg-green-500"
+                            : task.priority === "HIGH"
+                              ? "bg-orange-500"
+                              : task.priority === "MEDIUM"
+                                ? "bg-amber-500"
+                                : "bg-green-500"
                         }`}
                       />
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">{task.title}</h4>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {task.title}
+                        </h4>
                         <div className="mt-1 flex items-center justify-between">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{formatDateFr(task.dueDate)}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatDateFr(task.dueDate)}
+                          </span>
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs ${
-                              task.priority === "HIGH"
+                              task.priority === "URGENT"
                                 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                : task.priority === "MEDIUM"
-                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : task.priority === "HIGH"
+                                  ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                                  : task.priority === "MEDIUM"
+                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                    : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                             }`}
                           >
                             {translateStatus(task.priority)}
@@ -610,9 +800,11 @@ const Index = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-[250px] text-gray-500">
-                    <CalendarDays className="h-10 w-10 mb-2 text-gray-400" />
-                    <p className="text-center">Aucune tâche à venir cette semaine</p>
+                  <div className="flex h-[250px] flex-col items-center justify-center text-gray-500">
+                    <CalendarDays className="mb-2 h-10 w-10 text-gray-400" />
+                    <p className="text-center">
+                      Aucune tâche à venir cette semaine
+                    </p>
                   </div>
                 )}
               </div>
@@ -621,29 +813,29 @@ const Index = () => {
 
           {/* Tâches prioritaires */}
           <div
-            className="md:col-span-1 xl:col-span-6 opacity-0 animate-fade-in"
+            className="animate-fade-in opacity-0 md:col-span-1 xl:col-span-6"
             style={{ animationDelay: "0.9s", animationFillMode: "forwards" }}
           >
             <PriorityTaskList
-              tasks={tasks.filter((task) => task.priority === "HIGH")} // Only show high priority tasks
+              tasks={urgentTasks} // Utiliser les tâches urgentes ici
               projects={projects}
               onTaskClick={(taskId) => {
-                setSelectedTaskId(taskId)
-                setIsTaskDetailsOpen(true)
+                setSelectedTaskId(taskId);
+                setIsTaskDetailsOpen(true);
               }}
             />
           </div>
 
           {/* Tableau des tâches */}
           <div
-            className="md:col-span-2 xl:col-span-12 opacity-0 animate-fade-in"
+            className="animate-fade-in opacity-0 md:col-span-2 xl:col-span-12"
             style={{ animationDelay: "1.0s", animationFillMode: "forwards" }}
           >
-            <DashboardCard title="Vos Tâches">
+            <DashboardCard title="Vos Tâches Assignées">
               <div className="mb-4 flex flex-wrap gap-2">
                 <button
                   onClick={() => setFilterStatus("all")}
-                  className={`px-3 py-1 text-sm rounded-full ${
+                  className={`rounded-full px-3 py-1 text-sm ${
                     filterStatus === "all"
                       ? "bg-violet-600 text-white"
                       : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
@@ -653,7 +845,7 @@ const Index = () => {
                 </button>
                 <button
                   onClick={() => setFilterStatus("à faire")}
-                  className={`px-3 py-1 text-sm rounded-full ${
+                  className={`rounded-full px-3 py-1 text-sm ${
                     filterStatus === "à faire"
                       ? "bg-yellow-500 text-white"
                       : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
@@ -663,7 +855,7 @@ const Index = () => {
                 </button>
                 <button
                   onClick={() => setFilterStatus("en cours")}
-                  className={`px-3 py-1 text-sm rounded-full ${
+                  className={`rounded-full px-3 py-1 text-sm ${
                     filterStatus === "en cours"
                       ? "bg-blue-500 text-white"
                       : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
@@ -673,7 +865,7 @@ const Index = () => {
                 </button>
                 <button
                   onClick={() => setFilterStatus("terminé")}
-                  className={`px-3 py-1 text-sm rounded-full ${
+                  className={`rounded-full px-3 py-1 text-sm ${
                     filterStatus === "terminé"
                       ? "bg-green-500 text-white"
                       : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
@@ -682,9 +874,9 @@ const Index = () => {
                   Terminées
                 </button>
                 <button
-                  onClick={() => setFilterStatus("HIGH")}
-                  className={`px-3 py-1 text-sm rounded-full ${
-                    filterStatus === "HIGH"
+                  onClick={() => setFilterStatus("urgent")}
+                  className={`rounded-full px-3 py-1 text-sm ${
+                    filterStatus === "urgent"
                       ? "bg-red-500 text-white"
                       : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                   }`}
@@ -698,36 +890,47 @@ const Index = () => {
                   <TableHeader>
                     <TableRow>
                       {taskColumns.map((column) => (
-                        <TableHead key={column.id} style={{ minWidth: column.minWidth }}>
+                        <TableHead
+                          key={column.id}
+                          style={{ minWidth: column.minWidth }}
+                        >
                           {column.span}
                         </TableHead>
                       ))}
-                      <TableHead>Colonne</TableHead>
                       <TableHead>Projet</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.map((task) => {
-                      const project = projects.find((p) => p.id === task.projectId)
+                      const project = projects.find(
+                        (p) => p.id === task.projectId,
+                      );
                       return (
-                        <TableRow key={task.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableRow
+                          key={task.id}
+                          className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
+                          <TableCell className="font-medium">
+                            {task.title}
+                          </TableCell>
                           <TableCell>
                             <div
-                              className={`px-3 py-1 rounded-full text-xs font-medium inline-block ${getStatusColorClass(task.status, task.columnName)}`}
+                              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColorClass(task.status, task.columnName)}`}
                             >
                               {task.columnName || task.status}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div
-                              className={`px-3 py-1 rounded-full text-xs font-medium inline-block ${
-                                task.priority === "HIGH"
+                              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
+                                task.priority === "URGENT"
                                   ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                  : task.priority === "MEDIUM"
+                                  : task.priority === "HIGH"
                                     ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-                                    : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                    : task.priority === "MEDIUM"
+                                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                                      : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                               }`}
                             >
                               {translateStatus(task.priority)}
@@ -735,29 +938,34 @@ const Index = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center">
-                              <CalendarDays size={16} className="mr-2 text-gray-500" />
+                              <CalendarDays
+                                size={16}
+                                className="mr-2 text-gray-500"
+                              />
                               <span>{formatDateFr(task.dueDate)}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{task.columnName || "—"}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{project?.title || "—"}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                              {project?.title || "—"}
+                            </span>
                           </TableCell>
                           <TableCell>
                             <button
                               onClick={() => {
-                                setSelectedTaskId(task.id)
-                                setIsTaskDetailsOpen(true)
+                                setSelectedTaskId(task.id);
+                                setIsTaskDetailsOpen(true);
                               }}
-                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
-                              <Info size={16} className="text-violet-600 dark:text-violet-400" />
+                              <Info
+                                size={16}
+                                className="text-violet-600 dark:text-violet-400"
+                              />
                             </button>
                           </TableCell>
                         </TableRow>
-                      )
+                      );
                     })}
                   </TableBody>
                 </Table>
@@ -767,28 +975,98 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Footer */}
-
       {/* Modal Nouveau Projet */}
-      <Dialog open={isModalNewProjectOpen} onOpenChange={setIsModalNewProjectOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+      <ModalNewProject
+        isOpen={isModalNewProjectOpen}
+        onClose={() => setIsModalNewProjectOpen(false)}
+      />
+
+      {/* Modal Projets en attente */}
+      <Dialog
+        open={isPendingProjectsOpen}
+        onOpenChange={setIsPendingProjectsOpen}
+      >
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
-            <DialogTitle className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
-              Créer un nouveau projet
+            <DialogTitle className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-center text-2xl font-bold text-transparent">
+              Projets en attente d'approbation
             </DialogTitle>
-            <DialogDescription className="text-center text-gray-600">
-              Complétez le formulaire ci-dessous pour créer votre projet.
+            <DialogDescription className="text-center text-gray-600 dark:text-gray-400">
+              Ces projets sont en attente d'approbation par un administrateur.
             </DialogDescription>
           </DialogHeader>
-          <NewProjectForm onClose={() => setIsModalNewProjectOpen(false)} onProjectCreated={handleAddProject} />
+          <div className="mt-4 max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+            {pendingProjects.length > 0 ? (
+              pendingProjects.map((project) => (
+                <Card
+                  key={project.id}
+                  className="cursor-pointer border-violet-200 transition-all hover:shadow-md dark:border-violet-700"
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="mr-2 h-3 w-3 rounded-full bg-violet-500" />
+                        {project.title || "Projet sans nom"}
+                      </div>
+                      <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100">
+                        En attente
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      Créé le {formatCreationDate(project)}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <p className="line-clamp-2 text-sm">
+                      {project.description || "Aucune description disponible"}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {project.startDate
+                          ? `Début prévu: ${formatDateFr(project.startDate)}`
+                          : "Date de début: Non définie"}
+                      </span>
+                      <span className="bg-vioilet-50 rounded-full px-2 py-1 text-xs text-violet-800 dark:bg-violet-900/20 dark:text-violet-100">
+                        En attente d'approbation
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pb-2 pt-0">
+                    <div className="flex w-full items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {project.endDate
+                          ? `Fin prévue: ${formatDateFr(project.endDate)}`
+                          : "Date de fin: Non définie"}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 text-violet-500" />
+                        <span className="text-xs text-violet-600 dark:text-violet-400">
+                          En attente de validation
+                        </span>
+                      </div>
+                    </div>
+                  </CardFooter>
+                </Card>
+              ))
+            ) : (
+              <div className="py-8 text-center">
+                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                  <ClipboardCheck className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Aucun projet en attente d'approbation
+                </p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Détails de tâche */}
       <Sheet open={isTaskDetailsOpen} onOpenChange={setIsTaskDetailsOpen}>
-        <SheetContent className="w-[90%] sm:w-[600px] overflow-y-auto">
+        <SheetContent className="w-[90%] overflow-y-auto sm:w-[600px]">
           <SheetHeader>
-            <SheetTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
+            <SheetTitle className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-2xl font-bold text-transparent">
               {isEditingTask ? "Modifier la tâche" : "Détails de la tâche"}
             </SheetTitle>
           </SheetHeader>
@@ -807,41 +1085,56 @@ const Index = () => {
                     <CardTitle className="flex items-center">
                       <div
                         className={`mr-2 h-3 w-3 rounded-full ${
-                          selectedTask.priority === "HIGH"
+                          selectedTask.priority === "URGENT"
                             ? "bg-red-500"
-                            : selectedTask.priority === "MEDIUM"
-                              ? "bg-amber-500"
-                              : "bg-green-500"
+                            : selectedTask.priority === "HIGH"
+                              ? "bg-orange-500"
+                              : selectedTask.priority === "MEDIUM"
+                                ? "bg-violet-500"
+                                : "bg-green-500"
                         }`}
                       />
                       {selectedTask.title}
                     </CardTitle>
-                    <CardDescription>Créée le {formatDateFr(new Date().toISOString())}</CardDescription>
+                    <CardDescription>
+                      Créée le {formatDateFr(new Date().toISOString())}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Description</h4>
-                      <p className="mt-1">{selectedTask.description || "Aucune description disponible."}</p>
+                      <h4 className="text-sm font-medium text-gray-500">
+                        Description
+                      </h4>
+                      <p className="mt-1">
+                        {selectedTask.description ||
+                          "Aucune description disponible."}
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">Statut</h4>
+                        <h4 className="text-sm font-medium text-gray-500">
+                          Statut
+                        </h4>
                         <div
-                          className={`mt-1 px-3 py-1 rounded-full text-xs font-medium inline-block ${getStatusColorClass(selectedTask.status, selectedTask.columnName)}`}
+                          className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColorClass(selectedTask.status, selectedTask.columnName)}`}
                         >
                           {selectedTask.columnName || selectedTask.status}
                         </div>
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">Priorité</h4>
+                        <h4 className="text-sm font-medium text-gray-500">
+                          Priorité
+                        </h4>
                         <div
-                          className={`mt-1 px-3 py-1 rounded-full text-xs font-medium inline-block ${
-                            selectedTask.priority === "HIGH"
+                          className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-medium ${
+                            selectedTask.priority === "URGENT"
                               ? "bg-red-100 text-red-800"
-                              : selectedTask.priority === "MEDIUM"
+                              : selectedTask.priority === "HIGH"
                                 ? "bg-orange-100 text-orange-800"
-                                : "bg-green-100 text-green-800"
+                                : selectedTask.priority === "MEDIUM"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-green-100 text-green-800"
                           }`}
                         >
                           {translateStatus(selectedTask.priority)}
@@ -850,31 +1143,49 @@ const Index = () => {
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Date d'échéance</h4>
+                      <h4 className="text-sm font-medium text-gray-500">
+                        Date d'échéance
+                      </h4>
                       <p className="mt-1 flex items-center">
-                        <CalendarDays size={16} className="mr-2 text-gray-500" />
+                        <CalendarDays
+                          size={16}
+                          className="mr-2 text-gray-500"
+                        />
                         {formatDateFr(selectedTask.dueDate)}
                       </p>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Projet associé</h4>
+                      <h4 className="text-sm font-medium text-gray-500">
+                        Projet associé
+                      </h4>
                       {selectedTaskProject ? (
-                        <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <h5 className="font-medium">{selectedTaskProject.title}</h5>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTaskProject.description}</p>
-                          <p className="text-xs text-gray-500 mt-1">
+                        <div className="mt-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                          <h5 className="font-medium">
+                            {selectedTaskProject.title}
+                          </h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {selectedTaskProject.description}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
                             Du {formatDateFr(selectedTaskProject.startDate)}
-                            {selectedTaskProject.endDate ? ` au ${formatDateFr(selectedTaskProject.endDate)}` : ""}
+                            {selectedTaskProject.endDate
+                              ? ` au ${formatDateFr(selectedTaskProject.endDate)}`
+                              : ""}
                           </p>
                         </div>
                       ) : (
-                        <p className="mt-1 text-gray-500">Aucun projet associé</p>
+                        <p className="mt-1 text-gray-500">
+                          Aucun projet associé
+                        </p>
                       )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => setIsTaskDetailsOpen(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsTaskDetailsOpen(false)}
+                    >
                       Fermer
                     </Button>
                     <Button
@@ -893,9 +1204,9 @@ const Index = () => {
 
       {/* Liste des projets */}
       <Sheet open={isProjectsDetailOpen} onOpenChange={setIsProjectsDetailOpen}>
-        <SheetContent className="w-[90%] sm:w-[600px] overflow-y-auto">
+        <SheetContent className="w-[90%] overflow-y-auto sm:w-[600px]">
           <SheetHeader>
-            <SheetTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
+            <SheetTitle className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-2xl font-bold text-transparent">
               {selectedProject
                 ? `Projet: ${selectedProject.title}`
                 : projectFilter === "active"
@@ -927,55 +1238,66 @@ const Index = () => {
                   <CardContent>
                     <p className="mb-4">{selectedProject.description}</p>
 
-                    <h4 className="font-medium mb-2 flex items-center">
+                    <h4 className="mb-2 flex items-center font-medium">
                       <FileText size={16} className="mr-2" />
                       Tâches du projet ({projectTasks.length})
                     </h4>
 
-                    <div className="space-y-3 mt-4">
+                    <div className="mt-4 space-y-3">
                       {projectTasks.length > 0 ? (
                         projectTasks.map((task) => (
                           <div
                             key={task.id}
-                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="cursor-pointer rounded-lg bg-gray-50 p-3 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
                             onClick={() => {
-                              setSelectedTaskId(task.id)
-                              setIsProjectsDetailOpen(false)
-                              setTimeout(() => setIsTaskDetailsOpen(true), 100)
+                              setSelectedTaskId(task.id);
+                              setIsProjectsDetailOpen(false);
+                              setTimeout(() => setIsTaskDetailsOpen(true), 100);
                             }}
                           >
                             <div className="flex items-center justify-between">
-                              <h5 className="font-medium flex items-center">
+                              <h5 className="flex items-center font-medium">
                                 <div
                                   className={`mr-2 h-2 w-2 rounded-full ${
-                                    task.priority === "HIGH"
+                                    task.priority === "URGENT"
                                       ? "bg-red-500"
-                                      : task.priority === "MEDIUM"
-                                        ? "bg-amber-500"
-                                        : "bg-green-500"
+                                      : task.priority === "HIGH"
+                                        ? "bg-orange-500"
+                                        : task.priority === "MEDIUM"
+                                          ? "bg-amber-500"
+                                          : "bg-green-500"
                                   }`}
                                 />
                                 {task.title}
                               </h5>
                               <div
-                                className={`px-2 py-1 text-xs rounded-full ${getStatusColorClass(task.status, task.columnName)}`}
+                                className={`rounded-full px-2 py-1 text-xs ${getStatusColorClass(task.status, task.columnName)}`}
                               >
                                 {task.columnName || task.status}
                               </div>
                             </div>
-                            <p className="text-sm text-gray-500 mt-1">{formatDateFr(task.dueDate)}</p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {formatDateFr(task.dueDate)}
+                            </p>
                           </div>
                         ))
                       ) : (
-                        <div className="text-center p-6 text-gray-500">Aucune tâche trouvée pour ce projet</div>
+                        <div className="p-6 text-center text-gray-500">
+                          Aucune tâche trouvée pour ce projet
+                        </div>
                       )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between">
-                    <Button variant="outline" onClick={() => setSelectedProjectId(null)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedProjectId(null)}
+                    >
                       Retour aux projets
                     </Button>
-                    <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white">Modifier</Button>
+                    <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
+                      Modifier
+                    </Button>
                   </CardFooter>
                 </Card>
               </div>
@@ -986,7 +1308,7 @@ const Index = () => {
                   filteredProjects.map((project) => (
                     <Card
                       key={project.id}
-                      className="cursor-pointer hover:shadow-md transition-all"
+                      className="cursor-pointer transition-all hover:shadow-md"
                       onClick={() => setSelectedProjectId(project.id)}
                     >
                       <CardHeader className="pb-2">
@@ -998,23 +1320,32 @@ const Index = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pb-2">
-                        <p className="text-sm line-clamp-2">{project.description}</p>
-                        <div className="flex justify-between items-center mt-2">
+                        <p className="line-clamp-2 text-sm">
+                          {project.description}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between">
                           <span className="text-xs text-gray-500">
                             {project.endDate
                               ? `Terminé le ${formatDateFr(project.endDate)}`
                               : `Démarré le ${formatDateFr(project.startDate)}`}
                           </span>
-                          <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
-                            {tasks.filter((t) => t.projectId === project.id).length} tâches
+                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs dark:bg-gray-800">
+                            {
+                              tasks.filter((t) => t.projectId === project.id)
+                                .length
+                            }{" "}
+                            tâches
                           </span>
                         </div>
                       </CardContent>
                     </Card>
                   ))
                 ) : (
-                  <div className="text-center p-10 text-gray-500">
-                    <p>Aucun projet {projectFilter === "active" ? "actif" : ""} trouvé</p>
+                  <div className="p-10 text-center text-gray-500">
+                    <p>
+                      Aucun projet {projectFilter === "active" ? "actif" : ""}{" "}
+                      trouvé
+                    </p>
                   </div>
                 )}
               </div>
@@ -1023,7 +1354,7 @@ const Index = () => {
         </SheetContent>
       </Sheet>
     </div>
-  )
-}
+  );
+};
 
-export default Index
+export default Index;

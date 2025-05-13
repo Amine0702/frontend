@@ -20,6 +20,7 @@ export interface Project {
   clerkUserId: string
   status: string
   progress: number
+  isActive?: boolean
 }
 
 export interface StatCardProps {

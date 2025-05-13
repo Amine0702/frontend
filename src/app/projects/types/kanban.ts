@@ -47,6 +47,10 @@ export interface Column {
 }
 
 export interface Project {
+  createdAt: any
+  updatedAt: any
+  status: string
+  notes: any
   id: string
   name: string
   description: string
