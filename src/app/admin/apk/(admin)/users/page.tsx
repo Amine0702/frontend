@@ -251,14 +251,6 @@ export default function UsersPage() {
           <div className="flex space-x-2">
             <motion.button
               whileHover={{ scale: 1.05 }}
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 rounded-md bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-white shadow transition hover:from-purple-700 hover:to-pink-700"
-            >
-              <UserPlusIcon className="h-5 w-5" />
-              Ajouter un utilisateur
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
               onClick={() => setIsInviteModalOpen(true)}
               className="flex items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-white shadow transition hover:from-blue-700 hover:to-cyan-700"
             >

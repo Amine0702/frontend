@@ -1,25 +1,38 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import type { Project } from "../types/kanban"
-import KanbanColumn from "./KanbanColumn"
-import { Plus } from "lucide-react"
-import { toast } from "sonner"
+import type React from "react";
+
+import { useState, useEffect, useRef } from "react";
+import KanbanColumn from "./KanbanColumn";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { toast } from "sonner";
 
 interface KanbanViewProps {
-  project: Project
-  onMoveTask: (taskId: string, sourceColId: string, targetColId: string) => void
-  onAddColumn: (columnData: any) => void
-  onReorderColumns: (columns: any[]) => void
-  onTaskClick: (taskId: string) => void
-  userRole: string
-  currentUserId: string
-  canUserModifyTask: (task: any) => boolean
+  project: any;
+  onMoveTask: (
+    taskId: string,
+    sourceColumnId: string,
+    targetColumnId: string,
+  ) => void;
+  onAddColumn: (columnData: any) => void;
+  onReorderColumns: (columns: any[]) => void;
+  onTaskClick: (taskId: string) => void;
+  userRole: string;
+  currentUserId: string;
+  canUserModifyTask: (task: any) => boolean;
+  canDragTask: (taskId: string) => boolean;
+  onDeleteColumn: (columnId: string) => void;
 }
-
-// Couleurs pastel pour les colonnes
-const columnColors = ["violet", "yellow", "orange", "pink", "green", "indigo", "blue"]
 
 const KanbanView: React.FC<KanbanViewProps> = ({
   project,
@@ -30,175 +43,267 @@ const KanbanView: React.FC<KanbanViewProps> = ({
   userRole,
   currentUserId,
   canUserModifyTask,
+  canDragTask,
+  onDeleteColumn,
 }) => {
-  const [showNewColumnForm, setShowNewColumnForm] = useState(false)
-  const [newColumnTitle, setNewColumnTitle] = useState("")
-  const [draggedOverColumnId, setDraggedOverColumnId] = useState<string | null>(null)
+  const [columns, setColumns] = useState<any[]>([]);
+  const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
+  const [newColumnTitle, setNewColumnTitle] = useState("");
+  const [columnColors] = useState<string[]>([
+    "blue",
+    "green",
+    "purple",
+    "orange",
+    "pink",
+    "indigo",
+    "teal",
+    "red",
+  ]);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const columnRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Initialiser les colonnes à partir des données du projet
+  useEffect(() => {
+    if (project && project.columns) {
+      setColumns(project.columns);
+    }
+  }, [project]);
+
+  // Gérer le déplacement d'une tâche
+  const handleTaskMove = (
+    taskId: string,
+    sourceColumnId: string,
+    targetColumnId: string,
+  ) => {
+    onMoveTask(taskId, sourceColumnId, targetColumnId);
+  };
+
+  // Ouvrir le modal d'ajout de colonne
+  const openAddColumnModal = () => {
+    if (userRole !== "manager") {
+      toast.error("Seuls les managers peuvent ajouter des colonnes");
+      return;
+    }
+    setIsAddColumnModalOpen(true);
+  };
+
+  // Fermer le modal d'ajout de colonne
+  const closeAddColumnModal = () => {
+    setIsAddColumnModalOpen(false);
+    setNewColumnTitle("");
+  };
+
+  // Ajouter une nouvelle colonne
   const handleAddColumn = () => {
+    if (!newColumnTitle.trim()) {
+      toast.error("Le titre de la colonne ne peut pas être vide");
+      return;
+    }
+
+    const newColumnData = {
+      title: newColumnTitle,
+      order: columns.length,
+    };
+
+    onAddColumn(newColumnData);
+    closeAddColumnModal();
+  };
+
+  // Obtenir la couleur pour une colonne
+  const getColumnColor = (index: number) => {
+    return columnColors[index % columnColors.length];
+  };
+
+  // Fonctions pour le drag and drop des colonnes
+  const handleColumnDragStart = (
+    e: React.DragEvent<HTMLDivElement>,
+    columnId: string,
+  ) => {
     if (userRole !== "manager") {
-      toast.error("Seuls les managers peuvent ajouter des colonnes")
-      return
+      e.preventDefault();
+      toast.error("Seuls les managers peuvent réorganiser les colonnes");
+      return;
     }
 
-    if (newColumnTitle.trim()) {
-      onAddColumn({
-        title: newColumnTitle,
-        order: project.columns.length,
-      })
-      setNewColumnTitle("")
-      setShowNewColumnForm(false)
-    }
-  }
+    e.dataTransfer.setData("columnId", columnId);
+    e.dataTransfer.setData("type", "column"); // Identifier que c'est une colonne qui est déplacée
+    setDraggedColumn(columnId);
 
-  // Gestion du drag & drop des colonnes
-  const handleDragStart = (e: React.DragEvent, columnId: string) => {
-    if (userRole !== "manager") {
-      e.preventDefault()
-      toast.error("Seuls les managers peuvent réorganiser les colonnes")
-      return
-    }
-
-    e.dataTransfer.setData("columnId", columnId)
-    e.currentTarget.classList.add("opacity-50")
-  }
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove("opacity-50")
-    setDraggedOverColumnId(null)
-  }
-
-  const handleDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-    setDraggedOverColumnId(columnId)
-  }
-
-  const handleDragLeave = () => {
-    setDraggedOverColumnId(null)
-  }
-
-  const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
-    e.preventDefault()
-    const draggedColumnId = e.dataTransfer.getData("columnId")
-    const draggedTaskId = e.dataTransfer.getData("taskId")
-    const sourceColumnId = e.dataTransfer.getData("sourceColId")
-
-    setDraggedOverColumnId(null)
-
-    // Si c'est une colonne qui est déplacée
-    if (draggedColumnId && !draggedTaskId && draggedColumnId !== targetColumnId) {
-      if (userRole !== "manager") {
-        toast.error("Seuls les managers peuvent réorganiser les colonnes")
-        return
+    // Ajouter un délai pour l'effet visuel
+    setTimeout(() => {
+      if (columnRefs.current.has(columnId)) {
+        const el = columnRefs.current.get(columnId);
+        if (el) {
+          el.style.opacity = "0.4";
+        }
       }
+    }, 0);
+  };
 
-      // Réorganiser les colonnes
-      const columnsCopy = [...project.columns]
-      const draggedColumnIndex = columnsCopy.findIndex((col) => col.id === draggedColumnId)
-      const targetColumnIndex = columnsCopy.findIndex((col) => col.id === targetColumnId)
+  const handleColumnDragEnd = (columnId: string) => {
+    setDraggedColumn(null);
+    setDragOverColumn(null);
 
-      if (draggedColumnIndex !== -1 && targetColumnIndex !== -1) {
-        const [removedColumn] = columnsCopy.splice(draggedColumnIndex, 1)
-        columnsCopy.splice(targetColumnIndex, 0, removedColumn)
-
-        // Mettre à jour l'ordre des colonnes dans le backend
-        onReorderColumns(columnsCopy)
+    if (columnRefs.current.has(columnId)) {
+      const el = columnRefs.current.get(columnId);
+      if (el) {
+        el.style.opacity = "1";
       }
     }
-    // Si c'est une tâche qui est déplacée entre colonnes
-    else if (draggedTaskId && sourceColumnId && sourceColumnId !== targetColumnId) {
-      // Trouver la tâche pour vérifier si l'utilisateur a le droit de la déplacer
-      const task = project.columns
-        .find((col) => col.id === sourceColumnId)
-        ?.tasks.find((task) => task.id === draggedTaskId)
+  };
 
-      if (!task) {
-        toast.error("Tâche introuvable")
-        return
-      }
+  const handleColumnDragOver = (
+    e: React.DragEvent<HTMLDivElement>,
+    columnId: string,
+  ) => {
+    e.preventDefault();
 
-      if (!canUserModifyTask(task)) {
-        toast.error("Vous n'avez pas la permission de déplacer cette tâche")
-        return
-      }
+    // Vérifier si c'est une colonne qui est déplacée
+    const dataType =
+      e.dataTransfer.types.includes("type") &&
+      e.dataTransfer.getData("type") === "column";
 
-      onMoveTask(draggedTaskId, sourceColumnId, targetColumnId)
+    if (!dataType) return; // Si ce n'est pas une colonne, ne rien faire ici
+
+    if (draggedColumn === columnId) return;
+    setDragOverColumn(columnId);
+  };
+
+  const handleColumnDragLeave = () => {
+    setDragOverColumn(null);
+  };
+
+  const handleColumnDrop = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetColumnId: string,
+  ) => {
+    e.preventDefault();
+
+    // Vérifier si c'est une colonne qui est déplacée
+    if (
+      !e.dataTransfer.types.includes("type") ||
+      e.dataTransfer.getData("type") !== "column"
+    ) {
+      return; // Si ce n'est pas une colonne, ne rien faire ici
     }
-  }
+
+    const sourceColumnId = e.dataTransfer.getData("columnId");
+
+    if (!sourceColumnId || sourceColumnId === targetColumnId) {
+      return;
+    }
+
+    // Réorganiser les colonnes
+    const updatedColumns = [...columns];
+    const sourceIndex = updatedColumns.findIndex(
+      (col) => col.id === sourceColumnId,
+    );
+    const targetIndex = updatedColumns.findIndex(
+      (col) => col.id === targetColumnId,
+    );
+
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      const [movedColumn] = updatedColumns.splice(sourceIndex, 1);
+      updatedColumns.splice(targetIndex, 0, movedColumn);
+
+      // Mettre à jour l'ordre des colonnes
+      const reorderedColumns = updatedColumns.map((col, index) => ({
+        ...col,
+        order: index,
+      }));
+
+      setColumns(reorderedColumns);
+      onReorderColumns(reorderedColumns);
+    }
+
+    setDraggedColumn(null);
+    setDragOverColumn(null);
+  };
+
+  // Référencer un élément de colonne
+  const setColumnRef = (columnId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      columnRefs.current.set(columnId, element);
+    } else {
+      columnRefs.current.delete(columnId);
+    }
+  };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)]">
-      <div className="flex overflow-x-auto p-4 space-x-4 h-full pb-4 relative scrollbar-none">
-        {project.columns.map((column, index) => (
+    <div className="kanban-view h-full overflow-x-auto p-4">
+      <div className="flex h-full space-x-4">
+        {columns.map((column, index) => (
           <div
             key={column.id}
-            className={`flex-shrink-0 w-80 ${draggedOverColumnId === column.id ? "scale-105 shadow-lg ring-2 ring-violet-400" : ""}`}
-            draggable={userRole === "manager"}
-            onDragStart={(e) => handleDragStart(e, column.id)}
-            onDragEnd={handleDragEnd}
-            onDragOver={(e) => handleDragOver(e, column.id)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, column.id)}
+            className={`kanban-column-wrapper h-full min-w-[300px] ${dragOverColumn === column.id ? "rounded-lg border-2 border-violet-500" : ""}`}
+            ref={(el) => setColumnRef(column.id, el)}
+            onDragOver={(e) => handleColumnDragOver(e, column.id)}
+            onDragLeave={handleColumnDragLeave}
+            onDrop={(e) => handleColumnDrop(e, column.id)}
           >
             <KanbanColumn
               column={column}
               teamMembers={project.team}
-              onTaskMove={onMoveTask}
-              columnColor={columnColors[index % columnColors.length]}
+              onTaskMove={handleTaskMove}
+              columnColor={getColumnColor(index)}
               openTaskModal={onTaskClick}
               userRole={userRole}
               currentUserId={currentUserId}
               canUserModifyTask={canUserModifyTask}
+              canDragTask={canDragTask}
+              onDeleteColumn={onDeleteColumn}
+              onColumnDragStart={(e) => handleColumnDragStart(e, column.id)}
+              onColumnDragEnd={() => handleColumnDragEnd(column.id)}
+              isColumnDraggable={userRole === "manager"}
             />
           </div>
         ))}
 
-        {/* Bouton "Ajouter une colonne" à droite */}
+        {/* Bouton pour ajouter une nouvelle colonne */}
         {userRole === "manager" && (
-          <div className="flex-shrink-0 w-72">
-            {showNewColumnForm ? (
-              <div className="w-full bg-gray-50 rounded-lg p-4 shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
-                <div className="flex flex-col space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Titre de la colonne"
-                    value={newColumnTitle}
-                    onChange={(e) => setNewColumnTitle(e.target.value)}
-                    className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                    autoFocus
-                  />
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setShowNewColumnForm(false)}
-                      className="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 text-sm font-medium transition-colors dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={handleAddColumn}
-                      className="flex-1 py-2 px-3 bg-violet-500 hover:bg-violet-600 rounded-md text-white text-sm font-medium transition-colors dark:bg-violet-600 dark:hover:bg-violet-700"
-                      disabled={!newColumnTitle.trim()}
-                    >
-                      Ajouter
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowNewColumnForm(true)}
-                className="flex items-center justify-center w-64 h-12 text-sm font-medium text-violet-600 hover:text-violet-800 bg-violet-100 hover:bg-violet-200 px-4 py-2 rounded-md shadow-sm transition-all transform hover:scale-105 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40"
-              >
-                <Plus size={18} className="mr-2" />
-                Ajouter une colonne
-              </button>
-            )}
+          <div className="flex h-full min-w-[300px] items-start justify-center pt-12">
+            <button
+              onClick={openAddColumnModal}
+              className="flex items-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-gray-500 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Ajouter une colonne
+            </button>
           </div>
         )}
       </div>
-    </div>
-  )
-}
 
-export default KanbanView
+      {/* Modal pour ajouter une nouvelle colonne */}
+      <Dialog
+        open={isAddColumnModalOpen}
+        onOpenChange={setIsAddColumnModalOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajouter une nouvelle colonne</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="column-title">Titre de la colonne</Label>
+              <Input
+                id="column-title"
+                value={newColumnTitle}
+                onChange={(e) => setNewColumnTitle(e.target.value)}
+                placeholder="Ex: À faire, En cours, Terminé..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAddColumnModal}>
+              Annuler
+            </Button>
+            <Button onClick={handleAddColumn}>Ajouter</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default KanbanView;

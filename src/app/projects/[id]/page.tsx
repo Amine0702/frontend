@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import "./kan.css";
 import {
@@ -14,6 +14,7 @@ import {
   useUpdateColumnOrderMutation,
   useAcceptInvitationMutation,
   useDeleteProjectMutation,
+  useDeleteColumnMutation,
 } from "@/app/state/api";
 import ProjectHeader from "../components/ProjectHeader";
 import KanbanView from "../components/KanbanView";
@@ -56,6 +57,7 @@ const ProjectPage = () => {
   const [acceptInvitation, { isLoading: isAcceptingInvitation }] =
     useAcceptInvitationMutation();
   const [deleteProject] = useDeleteProjectMutation();
+  const [deleteColumn] = useDeleteColumnMutation();
   const router = useRouter();
 
   // Local state
@@ -72,6 +74,14 @@ const ProjectPage = () => {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [formattedProject, setFormattedProject] = useState<any>(null);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [currentTeamMemberId, setCurrentTeamMemberId] = useState<string | null>(
+    null,
+  );
+
+  // Créer un map des tâches draggables pour éviter les calculs répétés
+  const [draggableTasksMap, setDraggableTasksMap] = useState<
+    Record<string, boolean>
+  >({});
 
   // Handle invitation token if present
   useEffect(() => {
@@ -228,40 +238,44 @@ const ProjectPage = () => {
           ) || [],
       };
       setFormattedProject(formatted);
+
+      // Trouver l'ID du membre d'équipe correspondant à l'utilisateur actuel
+      if (userLoaded && user) {
+        const currentMember = formatted.team.find(
+          (member: any) => member.clerk_user_id === user.id,
+        );
+        if (currentMember) {
+          setCurrentTeamMemberId(currentMember.id);
+        }
+      }
     }
-  }, [project]);
+  }, [project, userLoaded, user]);
 
   // Déterminer le rôle de l'utilisateur dans le projet
   useEffect(() => {
-    // Vérifier s'il y a un rôle stocké pour ce projet
-    const storedRole = localStorage.getItem(`projectRole_${projectId}`);
-
-    if (storedRole) {
-      setUserRole(storedRole);
-    } else if (project && userLoaded && user) {
+    if (project && userLoaded && user) {
       // Si pas de rôle stocké, déterminer le rôle à partir des données du projet
       const clerkUserId = user.id;
 
-      // Vérifier si l'utilisateur est un manager
-      const isManager = project.team_members?.some(
-        (member: any) =>
-          member.clerk_user_id === clerkUserId &&
-          member.pivot?.role === "manager",
+      // Trouver le membre d'équipe correspondant à l'utilisateur actuel
+      const userTeamMember = project.team_members?.find(
+        (member: any) => member.clerk_user_id === clerkUserId,
       );
 
-      // Vérifier si l'utilisateur est un membre
-      const isMember = project.team_members?.some(
-        (member: any) =>
-          member.clerk_user_id === clerkUserId &&
-          member.pivot?.role === "member",
-      );
-
-      // Définir le rôle et le stocker
-      const role = isManager ? "manager" : isMember ? "member" : "observer";
-      setUserRole(role);
-      localStorage.setItem(`projectRole_${projectId}`, role);
+      if (userTeamMember) {
+        // Définir le rôle à partir des données du projet
+        const role = userTeamMember.pivot?.role || "observer";
+        setUserRole(role);
+        console.log(`Rôle de l'utilisateur dans ce projet: ${role}`);
+      } else {
+        // Si l'utilisateur n'est pas membre du projet, il est observateur par défaut
+        setUserRole("observer");
+        console.log(
+          "L'utilisateur n'est pas membre du projet, rôle par défaut: observer",
+        );
+      }
     }
-  }, [project, projectId, user, userLoaded]);
+  }, [project, user, userLoaded]);
 
   // Gérer les paramètres d'URL
   useEffect(() => {
@@ -274,6 +288,34 @@ const ProjectPage = () => {
     }
   }, [searchParams]);
 
+  // Calculer les tâches draggables une seule fois quand les données nécessaires sont disponibles
+  useEffect(() => {
+    if (formattedProject && currentTeamMemberId && userRole) {
+      const newDraggableTasksMap: Record<string, boolean> = {};
+
+      // Parcourir toutes les tâches et déterminer si elles sont draggables
+      formattedProject.columns.forEach((column: any) => {
+        column.tasks.forEach((task: any) => {
+          // Les managers peuvent déplacer toutes les tâches
+          if (userRole === "manager") {
+            newDraggableTasksMap[task.id] = true;
+          }
+          // Les membres ne peuvent déplacer que les tâches qui leur sont assignées
+          else if (userRole === "member") {
+            newDraggableTasksMap[task.id] =
+              task.assigneeId === currentTeamMemberId;
+          }
+          // Les observateurs ne peuvent déplacer aucune tâche
+          else {
+            newDraggableTasksMap[task.id] = false;
+          }
+        });
+      });
+
+      setDraggableTasksMap(newDraggableTasksMap);
+    }
+  }, [formattedProject, currentTeamMemberId, userRole]);
+
   // Derived state
   const selectedTask =
     selectedTaskId && formattedProject
@@ -282,44 +324,56 @@ const ProjectPage = () => {
           .find((task: { id: string }) => task.id === selectedTaskId)
       : null;
 
+  // Nouvelle fonction simplifiée pour vérifier si une tâche peut être déplacée
+  const canDragTask = useCallback(
+    (taskId: string) => {
+      return draggableTasksMap[taskId] || false;
+    },
+    [draggableTasksMap],
+  );
+
   // Fonction pour vérifier si l'utilisateur peut modifier une tâche
-  const canUserModifyTask = (task: any) => {
-    if (userRole === "manager") return true;
-    if (userRole === "observer") return false;
+  const canUserModifyTask = useCallback(
+    (task: any) => {
+      if (!task) return false;
 
-    // Si l'utilisateur est un membre, il peut modifier la tâche s'il en est le créateur ou s'il est assigné à cette tâche
-    if (userRole === "member") {
-      // Vérifier si l'utilisateur est le créateur de la tâche
-      if (task.creatorId === currentUserId) {
+      // Si l'utilisateur est manager du projet, il peut tout faire
+      if (userRole === "manager") {
         return true;
       }
 
-      // Vérifier si la tâche a été générée par l'IA (contient le tag 'généré_par_ia')
-      if (
-        task.tags &&
-        Array.isArray(task.tags) &&
-        task.tags.includes("généré_par_ia")
-      ) {
-        return true;
+      // Si l'utilisateur est observateur, il ne peut rien modifier
+      if (userRole === "observer") {
+        return false;
       }
 
-      // Vérifier si l'utilisateur est assigné à la tâche
-      if (task.assigneeId && formattedProject && formattedProject.team) {
-        // Trouver le membre d'équipe correspondant à l'utilisateur actuel
-        const currentTeamMember = formattedProject.team.find(
-          (member: any) => member.clerk_user_id === currentUserId,
-        );
-        if (
-          currentTeamMember &&
-          task.assigneeId.toString() === currentTeamMember.id.toString()
-        ) {
+      // Si l'utilisateur est membre, il peut modifier la tâche s'il en est le créateur ou s'il est assigné à cette tâche
+      if (userRole === "member") {
+        // Vérifier si l'utilisateur est le créateur de la tâche
+        if (task.creatorId === currentUserId) {
           return true;
         }
-      }
-    }
 
-    return false;
-  };
+        // Vérifier si la tâche a été générée par l'IA
+        if (task.tags && Array.isArray(task.tags)) {
+          if (
+            task.tags.includes("generer_ia") ||
+            task.tags.includes("généré_par_ia")
+          ) {
+            return true;
+          }
+        }
+
+        // Vérifier si l'utilisateur est assigné à la tâche
+        if (task.assigneeId && currentTeamMemberId) {
+          return task.assigneeId === currentTeamMemberId;
+        }
+      }
+
+      return false;
+    },
+    [userRole, currentUserId, currentTeamMemberId],
+  );
 
   // Handlers
   const handleNewTask = () => {
@@ -496,6 +550,7 @@ const ProjectPage = () => {
     }
   };
 
+  // Fonction simplifiée pour déplacer une tâche
   const handleMoveTask = async (
     taskId: string,
     sourceColId: string,
@@ -503,11 +558,8 @@ const ProjectPage = () => {
   ) => {
     if (!formattedProject) return;
 
-    const task = formattedProject.columns
-      ?.flatMap((col: { tasks: any }) => col.tasks)
-      .find((t: { id: string }) => t.id === taskId);
-
-    if (!task || !canUserModifyTask(task)) {
+    // Vérifier si l'utilisateur peut déplacer cette tâche avec la nouvelle fonction simplifiée
+    if (!canDragTask(taskId)) {
       toast.error("Vous n'avez pas la permission de déplacer cette tâche");
       return;
     }
@@ -518,10 +570,15 @@ const ProjectPage = () => {
         source_column_id: sourceColId,
         target_column_id: targetColId,
       }).unwrap();
+
       toast.success("Tâche déplacée avec succès");
-    } catch (error) {
-      toast.error("Erreur lors du déplacement de la tâche");
+      // Forcer un rafraîchissement des données
+      await refetch();
+    } catch (error: any) {
       console.error("Error moving task:", error);
+      toast.error(
+        `Erreur lors du déplacement de la tâche: ${error?.data?.message || "Erreur inconnue"}`,
+      );
     }
   };
 
@@ -575,10 +632,27 @@ const ProjectPage = () => {
       await deleteProject(projectId).unwrap();
       toast.success("Projet supprimé avec succès");
       // Rediriger vers la page des projets
-      router.push("/dashboard");
+      router.push("/home");
     } catch (error) {
       toast.error("Erreur lors de la suppression du projet");
       console.error("Error deleting project:", error);
+    }
+  };
+
+  const handleDeleteColumn = async (columnId: string) => {
+    if (userRole !== "manager") {
+      toast.error("Seuls les managers peuvent supprimer des colonnes");
+      return;
+    }
+
+    try {
+      await deleteColumn(columnId).unwrap();
+      toast.success("Colonne supprimée avec succès");
+      // Forcer un rafraîchissement des données
+      await refetch();
+    } catch (error) {
+      toast.error("Erreur lors de la suppression de la colonne");
+      console.error("Error deleting column:", error);
     }
   };
 
@@ -661,6 +735,8 @@ const ProjectPage = () => {
             userRole={userRole}
             currentUserId={currentUserId}
             canUserModifyTask={canUserModifyTask}
+            canDragTask={canDragTask}
+            onDeleteColumn={handleDeleteColumn}
           />
         )}
         {view === "list" && (

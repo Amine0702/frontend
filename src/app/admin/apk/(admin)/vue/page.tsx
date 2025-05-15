@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { createGlobalStyle } from "styled-components";
 import { useGetDashboardDataQuery } from "@/app/state/api";
 import type { BackendTeamMember } from "@/app/projects/types/kanban";
+import { ConfirmationModal } from "../../../components/confirmation-modal";
 
 // Ajouter des styles CSS personnalisés pour la barre de défilement
 
@@ -417,6 +418,13 @@ interface InnovationDetail {
   budget: string;
   team: string[];
   steps: { title: string; description: string }[];
+}
+
+interface NotificationState {
+  show: boolean;
+  title: string;
+  message: string;
+  type: "success" | "error" | "warning" | "info";
 }
 
 /* =================== Données de démonstration =================== */
@@ -1254,6 +1262,14 @@ export default function GlobalDashboard() {
   const [pendingProjects, setPendingProjects] = useState<PendingProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // État pour le système de notification
+  const [notification, setNotification] = useState<NotificationState>({
+    show: false,
+    title: "",
+    message: "",
+    type: "success",
+  });
+
   // Référence pour le champ de date dans le formulaire
   const dateInputRef = useRef<HTMLInputElement>(null);
 
@@ -1305,6 +1321,25 @@ export default function GlobalDashboard() {
     fetchPendingProjects();
   }, []);
 
+  // Afficher une notification
+  const showNotification = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "warning" | "info" = "success",
+  ) => {
+    setNotification({
+      show: true,
+      title,
+      message,
+      type,
+    });
+  };
+
+  // Fermer la notification
+  const closeNotification = () => {
+    setNotification((prev) => ({ ...prev, show: false }));
+  };
+
   // Handle project approval
   const handleApproveProject = async (projectId: number) => {
     setIsLoading(true);
@@ -1324,15 +1359,27 @@ export default function GlobalDashboard() {
         setPendingProjects((prev) =>
           prev.filter((project) => project.id !== projectId),
         );
-        // Show success message or notification
-        alert("Projet approuvé avec succès");
+        // Show success notification
+        showNotification(
+          "Projet approuvé",
+          "Le projet a été approuvé avec succès.",
+          "success",
+        );
       } else {
         console.error("Failed to approve project");
-        alert("Échec de l'approbation du projet");
+        showNotification(
+          "Échec de l'approbation",
+          "Le projet n'a pas pu être approuvé. Veuillez réessayer.",
+          "error",
+        );
       }
     } catch (error) {
       console.error("Error approving project:", error);
-      alert("Erreur lors de l'approbation du projet");
+      showNotification(
+        "Erreur",
+        "Une erreur s'est produite lors de l'approbation du projet.",
+        "error",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -1357,15 +1404,27 @@ export default function GlobalDashboard() {
         setPendingProjects((prev) =>
           prev.filter((project) => project.id !== projectId),
         );
-        // Show success message or notification
-        alert("Projet rejeté et supprimé de la base de données");
+        // Show success notification
+        showNotification(
+          "Projet rejeté",
+          "Le projet a été rejeté et supprimé de la base de données.",
+          "warning",
+        );
       } else {
         console.error("Failed to reject project");
-        alert("Échec du rejet du projet");
+        showNotification(
+          "Échec du rejet",
+          "Le projet n'a pas pu être rejeté. Veuillez réessayer.",
+          "error",
+        );
       }
     } catch (error) {
       console.error("Error rejecting project:", error);
-      alert("Erreur lors du rejet du projet");
+      showNotification(
+        "Erreur",
+        "Une erreur s'est produite lors du rejet du projet.",
+        "error",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -2166,6 +2225,16 @@ export default function GlobalDashboard() {
               )}
             </div>
           </Modal>
+        )}
+
+        {/* Notification Modal */}
+        {notification.show && (
+          <ConfirmationModal
+            title={notification.title}
+            message={notification.message}
+            type={notification.type}
+            onClose={closeNotification}
+          />
         )}
       </section>
     </>

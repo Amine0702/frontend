@@ -10,7 +10,6 @@ import {
   Tag,
   Paperclip,
   MessageSquare,
-  Share2,
   Trash2,
   Edit,
   Save,
@@ -22,6 +21,16 @@ import {
 import { format, type Locale } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/app/components/ui/alert-dialog";
 
 // Fonction de formatage sécurisée
 const safeFormat = (
@@ -73,11 +82,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Améliorons la vérification des permissions dans TaskModal
+  // Remplaçons la partie qui détermine les permissions
 
   // Déterminer les permissions en fonction du rôle et de la propriété de la tâche
   const canEdit = canUserModifyTask(task);
   const canDelete = canUserModifyTask(task);
-  const canAddComment = canUserModifyTask(task);
+  const canAddComment = userRole !== "observer"; // Tous sauf observateurs peuvent commenter
   const canAddAttachment = canUserModifyTask(task);
   const canToggleTimer = canUserModifyTask(task);
 
@@ -314,19 +327,22 @@ const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette tâche ?")) {
-      setIsLoading(true);
+    // Open the confirmation dialog instead of window.confirm
+    setIsDeleteDialogOpen(true);
+  };
 
-      try {
-        await onDeleteTask(task.id);
-        toast.success("Tâche supprimée avec succès");
-        onClose();
-      } catch (error) {
-        console.error("Error deleting task:", error);
-        toast.error("Erreur lors de la suppression de la tâche");
-      } finally {
-        setIsLoading(false);
-      }
+  const confirmDelete = async () => {
+    setIsLoading(true);
+
+    try {
+      await onDeleteTask(task.id);
+      toast.success("Tâche supprimée avec succès");
+      onClose();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Erreur lors de la suppression de la tâche");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -354,6 +370,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+        {/* ... keep existing code (top section) */}
+
         <div className="flex items-center justify-between border-b bg-violet-50 p-4">
           <div className="flex items-center space-x-2">
             <span
@@ -369,6 +387,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
             )}
           </div>
 
+          {/* Assurons-nous que les boutons d'action ne sont visibles que pour les utilisateurs autorisés */}
+          {/* Dans la partie des boutons d'action (en haut à droite) */}
           <div className="flex items-center space-x-2">
             {/* Compteur de temps avec bouton toggle */}
             <div className="flex items-center rounded-md bg-violet-100 px-3 py-1.5 text-sm text-violet-600">
@@ -749,25 +769,27 @@ const TaskModal: React.FC<TaskModalProps> = ({
                       Pièces jointes
                     </h3>
                     {canAddAttachment && (
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center rounded-md bg-violet-100 px-3 py-1.5 text-sm text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 size={16} className="mr-1 animate-spin" />
-                        ) : (
-                          <Upload size={16} className="mr-1" />
-                        )}
-                        Ajouter un fichier
-                      </button>
+                      <>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center rounded-md bg-violet-100 px-3 py-1.5 text-sm text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <Loader2 size={16} className="mr-1 animate-spin" />
+                          ) : (
+                            <Upload size={16} className="mr-1" />
+                          )}
+                          Ajouter un fichier
+                        </button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </>
                     )}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
                   </div>
 
                   {task.attachments.length > 0 ? (
@@ -892,6 +914,31 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </>
           )}
         </div>
+      </div>
+      <div>
+        {/* Alert Dialog for Delete Confirmation */}
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmation de suppression</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer cette tâche ?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-red-500 text-white hover:bg-red-600"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

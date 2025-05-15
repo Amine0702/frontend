@@ -19,14 +19,14 @@ import {
   Trash,
 } from "lucide-react";
 import TeamAvatars from "./TeamAvatars";
-import { useKanbanStore } from "../store/kanbanStore";
 import { format } from "date-fns";
-import { Button } from "../../components/ui/button";
-import { Toggle } from "../../components/ui/toggle";
+import { Button } from "@/app/components/ui/button";
+import { Toggle } from "@/app/components/ui/toggle";
 import ProjectShareModal from "./ProjectShareModal";
 import ChatbotModal from "./ChatbotModal";
 import { toast } from "sonner";
-import { useRemoveMemberFromProjectMutation } from "../../state/api";
+import { useRemoveMemberFromProjectMutation } from "@/app/state/api";
+import ConfirmationModal from "./ConfirmationModal";
 
 interface ProjectHeaderProps {
   project: Project;
@@ -45,7 +45,6 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   userRole,
   onDeleteProject,
 }) => {
-  const { shareTask } = useKanbanStore();
   const totalTasks = project.columns.reduce(
     (acc, col) => acc + col.tasks.length,
     0,
@@ -54,6 +53,13 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [showDeleteProjectConfirmation, setShowDeleteProjectConfirmation] =
+    useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<string | number | null>(
+    null,
+  );
+  const [showRemoveMemberConfirmation, setShowRemoveMemberConfirmation] =
+    useState(false);
   const [removeMemberFromProject, { isLoading: isRemovingMember }] =
     useRemoveMemberFromProjectMutation();
 
@@ -107,42 +113,48 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
 
     // Vérifier si la fonction de suppression est disponible
     if (onDeleteProject) {
-      // Demander confirmation avant de supprimer
-      if (
-        window.confirm(
-          "Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.",
-        )
-      ) {
-        onDeleteProject();
-      }
+      setShowDeleteProjectConfirmation(true);
     }
   };
 
-  const handleRemoveMember = async (memberId: string | number) => {
+  const confirmDeleteProject = () => {
+    if (onDeleteProject) {
+      onDeleteProject();
+    }
+    setShowDeleteProjectConfirmation(false);
+  };
+
+  const handleRemoveMember = (memberId: string | number) => {
     if (userRole !== "manager") {
       toast.error("Seuls les managers peuvent supprimer des membres");
       return;
     }
 
-    if (
-      window.confirm("Êtes-vous sûr de vouloir retirer ce membre du projet ?")
-    ) {
-      try {
-        await removeMemberFromProject({
-          projectId: project.id,
-          memberId,
-        }).unwrap();
-        toast.success("Membre supprimé du projet avec succès");
-      } catch (error) {
-        console.error("Failed to remove member:", error);
-        toast.error(
-          typeof error === "object" && error !== null && "data" in error
-            ? (error.data as any)?.message ||
-                "Erreur lors de la suppression du membre"
-            : "Erreur lors de la suppression du membre",
-        );
-      }
+    setMemberToRemove(memberId);
+    setShowRemoveMemberConfirmation(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (memberToRemove === null) return;
+
+    try {
+      await removeMemberFromProject({
+        projectId: project.id,
+        memberId: memberToRemove,
+      }).unwrap();
+      toast.success("Membre supprimé du projet avec succès");
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      toast.error(
+        typeof error === "object" && error !== null && "data" in error
+          ? (error.data as any)?.message ||
+              "Erreur lors de la suppression du membre"
+          : "Erreur lors de la suppression du membre",
+      );
     }
+
+    setShowRemoveMemberConfirmation(false);
+    setMemberToRemove(null);
   };
 
   return (
@@ -191,26 +203,30 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           </Button>
 
           <div className="flex items-center space-x-2">
-            <Button
-              onClick={handleShare}
-              variant="outline"
-              size="sm"
-              className="flex items-center rounded-md border border-violet-300 bg-white px-3 py-2 text-violet-600 transition-colors hover:bg-violet-50"
-            >
-              <Share size={16} className="mr-1" />
-              Partager
-            </Button>
-
-            <Button
-              onClick={handleNewTask}
-              size="sm"
-              className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white transition-colors hover:bg-violet-600"
-            >
-              <Plus size={16} className="mr-1" />
-              Nouvelle tâche
-            </Button>
-
             {userRole === "manager" && (
+              <Button
+                onClick={handleShare}
+                variant="outline"
+                size="sm"
+                className="flex items-center rounded-md border border-violet-300 bg-white px-3 py-2 text-violet-600 transition-colors hover:bg-violet-50"
+              >
+                <Share size={16} className="mr-1" />
+                Partager
+              </Button>
+            )}
+
+            {userRole !== "observer" && (
+              <Button
+                onClick={handleNewTask}
+                size="sm"
+                className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white transition-colors hover:bg-violet-600"
+              >
+                <Plus size={16} className="mr-1" />
+                Nouvelle tâche
+              </Button>
+            )}
+
+            {userRole === "manager" && onDeleteProject && (
               <Button
                 onClick={handleDeleteProject}
                 size="sm"
@@ -414,6 +430,31 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de confirmation pour supprimer un membre */}
+      <ConfirmationModal
+        isOpen={showRemoveMemberConfirmation}
+        onClose={() => {
+          setShowRemoveMemberConfirmation(false);
+          setMemberToRemove(null);
+        }}
+        onConfirm={confirmRemoveMember}
+        title="Supprimer un membre"
+        message="Êtes-vous sûr de vouloir retirer ce membre du projet ?"
+        confirmButtonText="Supprimer"
+        confirmButtonVariant="destructive"
+      />
+
+      {/* Modal de confirmation pour supprimer le projet */}
+      <ConfirmationModal
+        isOpen={showDeleteProjectConfirmation}
+        onClose={() => setShowDeleteProjectConfirmation(false)}
+        onConfirm={confirmDeleteProject}
+        title="Supprimer le projet"
+        message="Êtes-vous sûr de vouloir supprimer ce projet ? "
+        confirmButtonText="Supprimer"
+        confirmButtonVariant="destructive"
+      />
 
       {/* Modal pour le partage */}
       {showShareModal && (

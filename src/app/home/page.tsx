@@ -620,7 +620,7 @@ const Index = () => {
               className="flex transform items-center rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 px-5 py-3 text-white shadow-2xl transition hover:scale-105"
               onClick={() => setIsModalNewProjectOpen(true)}
             >
-              <PlusSquare className="mr-2 h-6 w-6" /> Nouvelle Projet
+              <PlusSquare className="mr-2 h-6 w-6" /> Nouveau Projet
             </button>
           </div>
         </div>

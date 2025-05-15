@@ -75,7 +75,7 @@
 
   /* Classes personnalisées pour notre application Kanban */
   .task-card {
-    @apply rounded-lg bg-white p-4 shadow-md hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-transparent hover:border-l-violet-500 relative cursor-grab active:cursor-grabbing;
+    @apply relative cursor-grab rounded-lg border-l-4 border-l-transparent bg-white p-4 shadow-md transition-shadow duration-200 hover:border-l-violet-500 hover:shadow-lg active:cursor-grabbing;
   }
 
   .gradient-soft {
@@ -87,15 +87,33 @@
   }
 
   .kanban-column {
-    @apply bg-gray-50 rounded-lg overflow-hidden shadow-md border border-gray-200 transition-all duration-200 hover:shadow-lg cursor-grab active:cursor-grabbing transform hover:translate-y-[-2px] dark:bg-gray-800 dark:border-gray-700;
+    @apply overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-md transition-all duration-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800;
   }
 
   .kanban-column-header {
-    @apply px-4 py-3 font-semibold text-gray-800 flex items-center justify-between dark:text-gray-200;
+    @apply flex items-center justify-between px-4 py-3 font-semibold text-gray-800 dark:text-gray-200;
+    position: relative;
+  }
+
+  /* Ajouter un indicateur visuel pour montrer que l'en-tête est draggable */
+  .kanban-column-header[draggable="true"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right, #8b5cf6, #6366f1);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .kanban-column-header[draggable="true"]:hover::before {
+    opacity: 1;
   }
 
   .kanban-column-body {
-    @apply p-3 bg-white/80 backdrop-filter backdrop-blur-sm rounded-b-lg max-h-[calc(100vh-260px)] overflow-y-auto dark:bg-gray-800/80;
+    @apply max-h-[calc(100vh-260px)] overflow-y-auto rounded-b-lg bg-white/80 p-3 backdrop-blur-sm backdrop-filter dark:bg-gray-800/80;
   }
 
   /* Style discret pour la scrollbar */
@@ -108,7 +126,7 @@
   }
 
   .scrollbar-none::-webkit-scrollbar-thumb {
-    @apply bg-gray-300/30 rounded-full dark:bg-gray-600/30;
+    @apply rounded-full bg-gray-300/30 dark:bg-gray-600/30;
   }
 
   .scrollbar-none::-webkit-scrollbar-thumb:hover {
@@ -116,19 +134,19 @@
   }
 
   .kanban-column-add-btn {
-    @apply bg-violet-400 hover:bg-violet-500 text-white rounded-full p-1.5 shadow-sm transition-colors dark:bg-violet-600 dark:hover:bg-violet-700;
+    @apply rounded-full bg-violet-400 p-1.5 text-white shadow-sm transition-colors hover:bg-violet-500 dark:bg-violet-600 dark:hover:bg-violet-700;
   }
 
   .kanban-column-empty {
-    @apply border-2 border-dashed border-gray-200 bg-gray-50/50 rounded-lg p-5 text-center text-gray-400 font-medium hover:bg-gray-100 transition-colors dark:border-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-700/50;
+    @apply rounded-lg border-2 border-dashed border-gray-200 bg-gray-50/50 p-5 text-center font-medium text-gray-400 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-700/50;
   }
 
   .task-drag-container {
-    @apply cursor-grab active:cursor-grabbing transform transition-transform active:scale-95;
+    @apply transform cursor-grab transition-transform active:scale-95 active:cursor-grabbing;
   }
 
   .task-timer {
-    @apply bg-gradient-to-r from-violet-600 to-violet-500 rounded-tr-md rounded-bl-lg shadow-sm text-white text-xs font-medium px-2 py-1 flex items-center z-10 dark:from-violet-700 dark:to-violet-800;
+    @apply z-10 flex items-center rounded-bl-lg rounded-tr-md bg-gradient-to-r from-violet-600 to-violet-500 px-2 py-1 text-xs font-medium text-white shadow-sm dark:from-violet-700 dark:to-violet-800;
   }
 
   /* Animations */
@@ -162,68 +180,68 @@
 
   /* Formulaires */
   .form-input {
-    @apply w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200;
+    @apply w-full rounded-md border border-gray-300 p-2 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200;
   }
 
   .form-button {
-    @apply px-4 py-2 rounded-md transition-colors focus:outline-none;
+    @apply rounded-md px-4 py-2 transition-colors focus:outline-none;
   }
 
   .primary-button {
-    @apply form-button bg-violet-500 hover:bg-violet-600 text-white shadow-sm dark:bg-violet-600 dark:hover:bg-violet-700;
+    @apply form-button bg-violet-500 text-white shadow-sm hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-700;
   }
 
   .secondary-button {
-    @apply form-button bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200;
+    @apply form-button bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600;
   }
 
   .danger-button {
-    @apply form-button bg-red-500 hover:bg-red-600 text-white dark:bg-red-600 dark:hover:bg-red-700;
+    @apply form-button bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700;
   }
 
   /* Modals */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50;
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm;
   }
 
   .modal-content {
-    @apply bg-white rounded-lg shadow-xl overflow-hidden max-w-3xl w-full max-h-[90vh] dark:bg-gray-800;
+    @apply max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800;
   }
 
   .modal-header {
-    @apply flex justify-between items-center p-4 border-b bg-violet-50 dark:bg-gray-700 dark:border-gray-600;
+    @apply flex items-center justify-between border-b bg-violet-50 p-4 dark:border-gray-600 dark:bg-gray-700;
   }
 
   .modal-body {
-    @apply p-4 overflow-y-auto dark:text-gray-200;
+    @apply overflow-y-auto p-4 dark:text-gray-200;
   }
 
   .modal-footer {
-    @apply flex justify-end space-x-2 p-4 border-t bg-gray-50 dark:bg-gray-700 dark:border-gray-600;
+    @apply flex justify-end space-x-2 border-t bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700;
   }
 
   /* Badges */
   .status-badge {
-    @apply text-xs font-medium px-2 py-1 rounded-full;
+    @apply rounded-full px-2 py-1 text-xs font-medium;
   }
 
   /* Avatars */
   .avatar {
-    @apply rounded-full h-8 w-8 overflow-hidden border-2 border-white dark:border-gray-700;
+    @apply h-8 w-8 overflow-hidden rounded-full border-2 border-white dark:border-gray-700;
   }
 
   .avatar-sm {
-    @apply rounded-full h-6 w-6 overflow-hidden border-2 border-white dark:border-gray-700;
+    @apply h-6 w-6 overflow-hidden rounded-full border-2 border-white dark:border-gray-700;
   }
 
   /* Tags */
   .tag {
-    @apply text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full whitespace-nowrap dark:bg-violet-900/30 dark:text-violet-300;
+    @apply whitespace-nowrap rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700 dark:bg-violet-900/30 dark:text-violet-300;
   }
 
   /* Permissions buttons */
   .permission-option {
-    @apply flex items-center p-3 border rounded-md hover:bg-violet-50 transition-colors dark:border-gray-600 dark:hover:bg-violet-900/30;
+    @apply flex items-center rounded-md border p-3 transition-colors hover:bg-violet-50 dark:border-gray-600 dark:hover:bg-violet-900/30;
   }
 
   .permission-option.active {
@@ -232,10 +250,10 @@
 
   /* Projet details */
   .project-meta {
-    @apply text-sm text-gray-500 flex items-center dark:text-gray-400;
+    @apply flex items-center text-sm text-gray-500 dark:text-gray-400;
   }
 
   .project-meta-item {
-    @apply flex items-center mr-4;
+    @apply mr-4 flex items-center;
   }
 }

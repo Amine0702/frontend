@@ -63,13 +63,18 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     Record<string, string>
   >({});
 
+  // Trouver l'ID du membre d'équipe correspondant à l'utilisateur actuel
+  const currentTeamMemberId =
+    teamMembers.find((member) => member.clerk_user_id === currentUserId)?.id ||
+    "";
+
   // État pour le mode manuel
   const [taskForm, setTaskForm] = useState({
     title: "",
     description: "",
     status: "à_faire",
     priority: "moyenne",
-    assignee_id: "",
+    assignee_id: userRole === "manager" ? "" : currentTeamMemberId, // Auto-assignation pour les membres
     estimated_time: 60, // 1 heure par défaut
     actual_time: 0,
     timer_active: true, // Démarrer le timer automatiquement
@@ -171,7 +176,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       errors.priority = "La priorité est obligatoire";
     }
 
-    if (!taskForm.assignee_id) {
+    // Pour les membres, on ne vérifie pas l'assignation car elle est automatique
+    if (userRole === "manager" && !taskForm.assignee_id) {
       errors.assignee_id = "L'assignation est obligatoire";
     }
 
@@ -193,12 +199,18 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     setValidationErrors({});
 
     try {
-      // Créer la tâche via l'API
-      await createTask({
+      // Pour les membres, s'assurer que la tâche est assignée à eux-mêmes
+      const finalTaskData = {
         ...taskForm,
         tags: taskForm.tags,
-        creator_id: currentUserId, // Ajouter l'ID du créateur
-      }).unwrap();
+        creator_id: currentUserId,
+        // Si l'utilisateur est un membre, forcer l'assignation à lui-même
+        assignee_id:
+          userRole === "manager" ? taskForm.assignee_id : currentTeamMemberId,
+      };
+
+      // Créer la tâche via l'API
+      await createTask(finalTaskData).unwrap();
 
       toast.success("Nouvelle tâche créée avec succès!");
       onClose();
@@ -276,6 +288,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       `Temps estimé défini à ${minutes >= 480 ? `${minutes / 480} jour(s)` : `${minutes >= 60 ? `${Math.floor(minutes / 60)}h${minutes % 60 > 0 ? ` ${minutes % 60}min` : ""}` : `${minutes}min`}`}`,
     );
   };
+
+  // Afficher le nom du membre assigné (pour les membres)
+  const assignedMemberName =
+    teamMembers.find((member) => member.id === currentTeamMemberId)?.name ||
+    "Vous-même";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -441,86 +458,116 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
               </div>
 
               <div className="mb-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="assignee"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Assigné à <span className="text-red-500">*</span>
-                  </label>
-                  {validationErrors.assignee_id && (
-                    <p className="mb-1 text-sm text-red-500">
-                      {validationErrors.assignee_id}
-                    </p>
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={`flex w-full items-center justify-between rounded-md border bg-white p-2 text-left ${validationErrors.assignee_id ? "border-red-500" : ""}`}
-                      >
-                        {taskForm.assignee_id ? (
-                          <div className="flex items-center">
-                            <Avatar className="mr-2 h-6 w-6">
-                              <AvatarImage
-                                src={
-                                  teamMembers.find(
-                                    (m) => m.id === taskForm.assignee_id,
-                                  )?.avatar ||
-                                  "/placeholder-user.jpg" ||
-                                  "/placeholder.svg"
-                                }
-                              />
-                              <AvatarFallback>
-                                {teamMembers
-                                  .find((m) => m.id === taskForm.assignee_id)
-                                  ?.name.charAt(0) || "?"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>
-                              {teamMembers.find(
-                                (m) => m.id === taskForm.assignee_id,
-                              )?.name || "Non assigné"}
-                            </span>
-                          </div>
-                        ) : (
-                          <span>Non assigné</span>
-                        )}
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="max-h-[300px] w-[200px] overflow-y-auto">
-                      <DropdownMenuItem
-                        onClick={() => updateTaskForm("assignee_id", "")}
-                        className="cursor-pointer"
-                      >
-                        <span>Non assigné</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {teamMembers.map((member) => (
+                {/* Afficher le champ d'assignation uniquement pour les managers */}
+                {userRole === "manager" ? (
+                  <div>
+                    <label
+                      htmlFor="assignee"
+                      className="mb-1 block text-sm font-medium text-gray-700"
+                    >
+                      Assigné à <span className="text-red-500">*</span>
+                    </label>
+                    {validationErrors.assignee_id && (
+                      <p className="mb-1 text-sm text-red-500">
+                        {validationErrors.assignee_id}
+                      </p>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className={`flex w-full items-center justify-between rounded-md border bg-white p-2 text-left ${validationErrors.assignee_id ? "border-red-500" : ""}`}
+                        >
+                          {taskForm.assignee_id ? (
+                            <div className="flex items-center">
+                              <Avatar className="mr-2 h-6 w-6">
+                                <AvatarImage
+                                  src={
+                                    teamMembers.find(
+                                      (m) => m.id === taskForm.assignee_id,
+                                    )?.avatar ||
+                                    "/placeholder-user.jpg" ||
+                                    "/placeholder.svg" ||
+                                    "/placeholder.svg"
+                                  }
+                                />
+                                <AvatarFallback>
+                                  {teamMembers
+                                    .find((m) => m.id === taskForm.assignee_id)
+                                    ?.name.charAt(0) || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>
+                                {teamMembers.find(
+                                  (m) => m.id === taskForm.assignee_id,
+                                )?.name || "Non assigné"}
+                              </span>
+                            </div>
+                          ) : (
+                            <span>Non assigné</span>
+                          )}
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="max-h-[300px] w-[200px] overflow-y-auto">
                         <DropdownMenuItem
-                          key={member.id}
-                          onClick={() =>
-                            updateTaskForm("assignee_id", member.id)
-                          }
+                          onClick={() => updateTaskForm("assignee_id", "")}
                           className="cursor-pointer"
                         >
-                          <div className="flex items-center">
-                            <Avatar className="mr-2 h-6 w-6">
-                              <AvatarImage
-                                src={member.avatar || "/placeholder-user.jpg"}
-                              />
-                              <AvatarFallback>
-                                {member.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>{member.name}</span>
-                          </div>
+                          <span>Non assigné</span>
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                        <DropdownMenuSeparator />
+                        {teamMembers.map((member) => (
+                          <DropdownMenuItem
+                            key={member.id}
+                            onClick={() =>
+                              updateTaskForm("assignee_id", member.id)
+                            }
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center">
+                              <Avatar className="mr-2 h-6 w-6">
+                                <AvatarImage
+                                  src={member.avatar || "/placeholder-user.jpg"}
+                                />
+                                <AvatarFallback>
+                                  {member.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{member.name}</span>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ) : (
+                  // Pour les membres, afficher un message indiquant que la tâche leur sera assignée
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Assigné à
+                    </label>
+                    <div className="flex items-center rounded-md border bg-gray-50 p-2">
+                      <Avatar className="mr-2 h-6 w-6">
+                        <AvatarImage
+                          src={
+                            teamMembers.find(
+                              (m) => m.id === currentTeamMemberId,
+                            )?.avatar ||
+                            "/placeholder-user.jpg" ||
+                            "/placeholder.svg"
+                          }
+                        />
+                        <AvatarFallback>
+                          {assignedMemberName.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-gray-700">
+                        {assignedMemberName} (vous)
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label

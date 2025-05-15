@@ -188,6 +188,15 @@ export const api = createApi({
       ],
     }),
 
+    // Ajouter l'endpoint pour supprimer une colonne:
+    deleteColumn: builder.mutation({
+      query: (columnId) => ({
+        url: `/columns/${columnId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Projects"],
+    }),
+
     // Task endpoints
     createTask: builder.mutation({
       query: (taskData) => ({
@@ -609,4 +618,5 @@ export const {
   useInviteUserMutation,
   useGetPendingInvitationsQuery,
   useCancelInvitationMutation,
+  useDeleteColumnMutation,
 } = api;
