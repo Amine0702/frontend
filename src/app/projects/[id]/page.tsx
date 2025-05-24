@@ -133,10 +133,18 @@ const ProjectPage = () => {
   // Formater les données du projet lorsqu'elles sont disponibles
   useEffect(() => {
     if (project) {
+      // Afficher les données brutes du projet pour le débogage
+      console.log("Données brutes du projet:", project);
+
       const formatted = {
         id: project.id.toString(),
         name: project.name,
         description: project.description,
+        // Ajouter les dates directement depuis le backend
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        status: project.status || "En cours",
+        notes: project.notes,
         team:
           project.team_members?.map(
             (member: {
@@ -237,6 +245,14 @@ const ProjectPage = () => {
             }),
           ) || [],
       };
+
+      // Afficher le projet formaté pour le débogage
+      console.log("Projet formaté:", formatted);
+      console.log("Dates du projet:", {
+        createdAt: formatted.createdAt,
+        updatedAt: formatted.updatedAt,
+      });
+
       setFormattedProject(formatted);
 
       // Trouver l'ID du membre d'équipe correspondant à l'utilisateur actuel
@@ -300,10 +316,16 @@ const ProjectPage = () => {
           if (userRole === "manager") {
             newDraggableTasksMap[task.id] = true;
           }
-          // Les membres ne peuvent déplacer que les tâches qui leur sont assignées
+          // Les membres ne peuvent déplacer que les tâches qui leur sont assignées ou qu'ils ont créées
           else if (userRole === "member") {
-            newDraggableTasksMap[task.id] =
-              task.assigneeId === currentTeamMemberId;
+            // Vérifier si l'utilisateur est le créateur
+            const isCreator = task.creatorId === currentUserId;
+
+            // Vérifier si l'utilisateur est assigné à la tâche
+            const isAssigned = task.assigneeId === currentTeamMemberId;
+
+            // CORRECTION: Ne pas autoriser le déplacement des tâches IA sauf si l'utilisateur est créateur ou assigné
+            newDraggableTasksMap[task.id] = isCreator || isAssigned;
           }
           // Les observateurs ne peuvent déplacer aucune tâche
           else {
@@ -314,7 +336,7 @@ const ProjectPage = () => {
 
       setDraggableTasksMap(newDraggableTasksMap);
     }
-  }, [formattedProject, currentTeamMemberId, userRole]);
+  }, [formattedProject, currentTeamMemberId, userRole, currentUserId]);
 
   // Derived state
   const selectedTask =
@@ -354,15 +376,13 @@ const ProjectPage = () => {
           return true;
         }
 
-        // Vérifier si la tâche a été générée par l'IA
-        if (task.tags && Array.isArray(task.tags)) {
-          if (
-            task.tags.includes("generer_ia") ||
-            task.tags.includes("généré_par_ia")
-          ) {
-            return true;
-          }
-        }
+        // CORRECTION: Ne pas autoriser tous les membres à modifier les tâches générées par l'IA
+        // Supprimer cette vérification qui autorisait tous les membres à modifier les tâches IA
+        // if (task.tags && Array.isArray(task.tags)) {
+        //   if (task.tags.includes("generer_ia") || task.tags.includes("généré_par_ia")) {
+        //     return true;
+        //   }
+        // }
 
         // Vérifier si l'utilisateur est assigné à la tâche
         if (task.assigneeId && currentTeamMemberId) {
@@ -558,6 +578,13 @@ const ProjectPage = () => {
   ) => {
     if (!formattedProject) return;
 
+    console.log("Tentative de déplacement de tâche:", {
+      taskId,
+      sourceColId,
+      targetColId,
+      canDrag: canDragTask(taskId),
+    });
+
     // Vérifier si l'utilisateur peut déplacer cette tâche avec la nouvelle fonction simplifiée
     if (!canDragTask(taskId)) {
       toast.error("Vous n'avez pas la permission de déplacer cette tâche");
@@ -565,13 +592,22 @@ const ProjectPage = () => {
     }
 
     try {
+      // Trouver la colonne cible pour afficher son nom dans le message de succès
+      const targetColumn = formattedProject.columns.find(
+        (col: { id: string }) => col.id === targetColId,
+      );
+      const targetColumnName = targetColumn
+        ? targetColumn.title
+        : "nouvelle colonne";
+
       await moveTask({
         task_id: taskId,
         source_column_id: sourceColId,
         target_column_id: targetColId,
       }).unwrap();
 
-      toast.success("Tâche déplacée avec succès");
+      toast.success(`Tâche déplacée vers "${targetColumnName}" avec succès`);
+      // Le statut de la tâche est automatiquement mis à jour par le backend en fonction du titre de la colonne
       // Forcer un rafraîchissement des données
       await refetch();
     } catch (error: any) {

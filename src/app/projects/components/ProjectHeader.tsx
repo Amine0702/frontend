@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Project } from "../types/kanban";
 import {
   Plus,
@@ -62,14 +62,54 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
     useState(false);
   const [removeMemberFromProject, { isLoading: isRemovingMember }] =
     useRemoveMemberFromProjectMutation();
+  const [formattedCreatedDate, setFormattedCreatedDate] = useState<
+    string | null
+  >(null);
+  const [formattedUpdatedDate, setFormattedUpdatedDate] = useState<
+    string | null
+  >(null);
 
-  // Dates de création et dernière modification du projet
-  const projectCreatedDate = project.createdAt
-    ? new Date(project.createdAt)
-    : new Date(2024, 3, 5);
-  const projectLastModifiedDate = project.updatedAt
-    ? new Date(project.updatedAt)
-    : new Date();
+  // Formater les dates du projet
+  useEffect(() => {
+    // Fonction pour formater une date avec gestion d'erreur
+    const formatDateSafely = (
+      dateValue: any,
+      formatString: string,
+    ): string | null => {
+      if (!dateValue) return null;
+
+      try {
+        // Si c'est une chaîne de caractères, essayer de la convertir en Date
+        const date =
+          typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+
+        // Vérifier si la date est valide
+        if (isNaN(date.getTime())) {
+          console.error("Date invalide:", dateValue);
+          return null;
+        }
+
+        return format(date, formatString);
+      } catch (error) {
+        console.error("Erreur lors du formatage de la date:", error);
+        return null;
+      }
+    };
+
+    // Formater les dates avec le format court pour l'en-tête
+    if (project.createdAt) {
+      setFormattedCreatedDate(
+        formatDateSafely(project.createdAt, "dd/MM/yyyy"),
+      );
+    }
+
+    if (project.updatedAt) {
+      setFormattedUpdatedDate(
+        formatDateSafely(project.updatedAt, "dd/MM/yyyy"),
+      );
+    }
+  }, [project.createdAt, project.updatedAt]);
+
   const projectManager = project.team.find(
     (member) => member.role === "manager",
   );
@@ -157,6 +197,27 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
     setMemberToRemove(null);
   };
 
+  // Fonction pour formater une date pour l'affichage détaillé
+  const formatDetailDate = (dateValue: any): string => {
+    if (!dateValue) return "Non définie";
+
+    try {
+      // Si c'est une chaîne de caractères, essayer de la convertir en Date
+      const date =
+        typeof dateValue === "string" ? new Date(dateValue) : dateValue;
+
+      // Vérifier si la date est valide
+      if (isNaN(date.getTime())) {
+        return "Non définie";
+      }
+
+      return format(date, "dd MMMM yyyy");
+    } catch (error) {
+      console.error("Erreur lors du formatage de la date détaillée:", error);
+      return "Non définie";
+    }
+  };
+
   return (
     <div className="sticky top-0 z-10 border-b bg-white p-4 shadow-sm">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -175,7 +236,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           <div className="project-meta mr-4">
             <div className="project-meta-item">
               <Calendar size={14} className="mr-1" />
-              <span>Créé le {format(projectCreatedDate, "dd/MM/yyyy")}</span>
+              <span>Créé le {formattedCreatedDate || "Non défini"}</span>
             </div>
 
             <div className="project-meta-item">
@@ -327,10 +388,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
                     Date de création
                   </h3>
                   <p className="mt-1 text-gray-600">
-                    {format(
-                      new Date(project.createdAt || projectCreatedDate),
-                      "dd MMMM yyyy",
-                    )}
+                    {formatDetailDate(project.createdAt)}
                   </p>
                 </div>
                 <div>
@@ -338,10 +396,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({
                     Dernière modification
                   </h3>
                   <p className="mt-1 text-gray-600">
-                    {format(
-                      new Date(project.updatedAt || projectLastModifiedDate),
-                      "dd MMMM yyyy",
-                    )}
+                    {formatDetailDate(project.updatedAt)}
                   </p>
                 </div>
                 <div>

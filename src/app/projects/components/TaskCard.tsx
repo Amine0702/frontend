@@ -100,8 +100,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation(); // Empêcher le déclenchement du onClick du parent
 
-    if (userRole !== "manager") {
-      toast.error("Seuls les managers peuvent partager des tâches");
+    if (!canUserModifyTask(task)) {
+      toast.error("Vous n'avez pas la permission de partager cette tâche");
       return;
     }
 
@@ -202,7 +202,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         )}
 
         {/* Actions */}
-        {userRole === "manager" && (
+        {canUserModifyTask(task) && (
           <div className="flex space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               onClick={handleShare}

@@ -25,7 +25,6 @@ import {
   useGetPendingInvitationsQuery,
   useCancelInvitationMutation,
 } from "@/app/state/api";
-import { useAuth } from "@clerk/nextjs";
 
 // Palette de couleurs
 const primaryColor = "#b03ff3"; // mauve dominant
@@ -80,7 +79,7 @@ const StatsCard = ({
 
 // --- Composant principal UsersPage
 export default function UsersPage() {
-  const { userId, isSignedIn } = useAuth();
+  const [clerkUserId, setClerkUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -88,12 +87,22 @@ export default function UsersPage() {
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "user">("all");
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const [isCancelInvitationModalOpen, setIsCancelInvitationModalOpen] =
+    useState(false);
+  const [invitationToCancel, setInvitationToCancel] =
+    useState<Invitation | null>(null);
+
   // Store Clerk user ID in localStorage for API requests
+
   useEffect(() => {
+    const userId = localStorage.getItem("currentUserId");
     if (userId) {
-      localStorage.setItem("currentUserId", userId);
+      setClerkUserId(userId);
     }
-  }, [userId]);
+  }, []);
 
   // RTK Query hooks
   const {
@@ -144,16 +153,19 @@ export default function UsersPage() {
   };
 
   // Handle user deletion
-  const handleDeleteUser = async (user: User) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${user.name} ?`)) {
-      try {
-        await deleteUser(user.id).unwrap();
-        toast.success(`${user.name} a été supprimé avec succès`);
-        refetchUsers();
-      } catch (error) {
-        console.error("Erreur lors de la suppression de l'utilisateur:", error);
-        toast.error("Erreur lors de la suppression de l'utilisateur");
-      }
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await deleteUser(userToDelete.id).unwrap();
+      toast.success(`${userToDelete.name} a été supprimé avec succès`);
+      refetchUsers();
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      toast.error("Erreur lors de la suppression de l'utilisateur");
+    } finally {
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
     }
   };
 
@@ -193,7 +205,7 @@ export default function UsersPage() {
       <Toaster position="top-right" richColors />
 
       <div className="mx-auto max-w-7xl">
-        <h1 className="mb-8 text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="mb-5 mt-5 flex items-center bg-gradient-to-r from-[#b03ff3] to-blue-500 bg-clip-text text-4xl font-extrabold text-transparent">
           Gestion des Utilisateurs
         </h1>
 
@@ -240,7 +252,7 @@ export default function UsersPage() {
               onChange={(e) =>
                 setFilterRole(e.target.value as "all" | "admin" | "user")
               }
-              className="w-40 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#b03ff3] focus:ring-2 focus:ring-[#b03ff3] dark:border-gray-600 dark:bg-gray-700"
+              className="w-40 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#b03ff3] focus:ring-2 focus:ring-[#b03ff3] dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="all">Tous les rôles</option>
               <option value="admin">Administrateurs</option>
@@ -252,7 +264,7 @@ export default function UsersPage() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={() => setIsInviteModalOpen(true)}
-              className="flex items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-white shadow transition hover:from-blue-700 hover:to-cyan-700"
+              className="flex items-center gap-2 rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-white shadow transition"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -365,7 +377,10 @@ export default function UsersPage() {
                           <PencilIcon className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteUser(user)}
+                          onClick={() => {
+                            setUserToDelete(user);
+                            setIsDeleteModalOpen(true);
+                          }}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                           title="Supprimer"
                           disabled={isDeleting}
@@ -468,27 +483,8 @@ export default function UsersPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                       <button
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              `Êtes-vous sûr de vouloir annuler l'invitation pour ${invitation.email} ?`,
-                            )
-                          ) {
-                            cancelInvitation(invitation.id)
-                              .unwrap()
-                              .then(() => {
-                                toast.success("Invitation annulée avec succès");
-                                refetchInvitations();
-                              })
-                              .catch((error) => {
-                                console.error(
-                                  "Erreur lors de l'annulation de l'invitation:",
-                                  error,
-                                );
-                                toast.error(
-                                  "Erreur lors de l'annulation de l'invitation",
-                                );
-                              });
-                          }
+                          setInvitationToCancel(invitation);
+                          setIsCancelInvitationModalOpen(true);
                         }}
                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                         title="Annuler l'invitation"
@@ -556,6 +552,54 @@ export default function UsersPage() {
                 });
             }}
             isLoading={isInviting}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isDeleteModalOpen && (
+          <DeleteConfirmationModal
+            onClose={() => {
+              setIsDeleteModalOpen(false);
+              setUserToDelete(null);
+            }}
+            onConfirm={handleDeleteUser}
+            isLoading={isDeleting}
+            user={userToDelete}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isCancelInvitationModalOpen && (
+          <CancelInvitationModal
+            onClose={() => {
+              setIsCancelInvitationModalOpen(false);
+              setInvitationToCancel(null);
+            }}
+            onConfirm={() => {
+              if (invitationToCancel) {
+                cancelInvitation(invitationToCancel.id)
+                  .unwrap()
+                  .then(() => {
+                    toast.success("Invitation annulée avec succès");
+                    refetchInvitations();
+                  })
+                  .catch((error) => {
+                    console.error(
+                      "Erreur lors de l'annulation de l'invitation:",
+                      error,
+                    );
+                    toast.error("Erreur lors de l'annulation de l'invitation");
+                  })
+                  .finally(() => {
+                    setIsCancelInvitationModalOpen(false);
+                    setInvitationToCancel(null);
+                  });
+              }
+            }}
+            isLoading={isCancelling}
+            invitation={invitationToCancel}
           />
         )}
       </AnimatePresence>
@@ -918,7 +962,7 @@ const InviteUserModal = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-md bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 text-white transition hover:from-blue-700 hover:to-cyan-700"
+              className="flex items-center gap-2 rounded-md bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-white transition"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -969,6 +1013,184 @@ const InviteUserModal = ({
             </button>
           </div>
         </form>
+      </motion.div>
+    </div>
+  );
+};
+
+// Ajoutez ce composant à la fin de votre fichier
+const DeleteConfirmationModal = ({
+  onClose,
+  onConfirm,
+  isLoading,
+  user,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+  user: User | null;
+}) => {
+  if (!user) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800"
+      >
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-red-600 dark:text-red-400">
+          <TrashIcon className="h-6 w-6" />
+          <span>Confirmer la suppression</span>
+        </h2>
+
+        <div className="mb-6">
+          <p className="text-gray-700 dark:text-gray-300">
+            Êtes-vous sûr de vouloir supprimer définitivement l'utilisateur{" "}
+            <span className="font-semibold text-red-600">{user.name}</span> ?
+          </p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            disabled={isLoading}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition hover:bg-red-700 disabled:bg-red-400"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg
+                  className="h-5 w-5 animate-spin text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <span>Suppression...</span>
+              </>
+            ) : (
+              <>
+                <TrashIcon className="h-5 w-5" />
+                <span>Confirmer la suppression</span>
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const CancelInvitationModal = ({
+  onClose,
+  onConfirm,
+  isLoading,
+  invitation,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+  invitation: Invitation | null;
+}) => {
+  if (!invitation) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800"
+      >
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-red-600 dark:text-red-400">
+          <TrashIcon className="h-6 w-6" />
+          <span>Annuler l'invitation</span>
+        </h2>
+
+        <div className="mb-6">
+          <p className="text-gray-700 dark:text-gray-300">
+            Êtes-vous sûr de vouloir annuler l'invitation envoyée à{" "}
+            <span className="font-semibold text-red-600">
+              {invitation.email}
+            </span>{" "}
+            ?
+          </p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400"></p>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            disabled={isLoading}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-white transition hover:bg-red-700 disabled:bg-red-400"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg
+                  className="h-5 w-5 animate-spin text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <span>Annulation en cours...</span>
+              </>
+            ) : (
+              <>
+                <TrashIcon className="h-5 w-5" />
+                <span>Confirmer l'annulation</span>
+              </>
+            )}
+          </button>
+        </div>
       </motion.div>
     </div>
   );

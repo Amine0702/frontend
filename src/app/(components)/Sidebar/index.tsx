@@ -1,12 +1,13 @@
 "use client";
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useGetUserProjectsQuery } from "@/app/state/api";
 import { usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../redux";
+import { toggleSidebar } from "@/app/state"; // Importez l'action pour contrôler le sidebar
 import {
   Briefcase,
   FileLineChartIcon as FileChartLine,
@@ -25,6 +26,8 @@ const Sidebar = () => {
   const [showManagerProjects, setShowManagerProjects] = useState(true);
   const [showInvitedProjects, setShowInvitedProjects] = useState(true);
   const [isMobileOpen, setShowMobile] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [originalSidebarState, setOriginalSidebarState] = useState(false);
 
   const { user, isLoaded: userLoaded } = useUser();
   const clerkUserId = user?.id || "";
@@ -39,8 +42,33 @@ const Sidebar = () => {
     (state) => state.global.isSidebarCollapsed,
   );
 
+  // Sauvegarder l'état original du sidebar quand il change
+  useEffect(() => {
+    setOriginalSidebarState(isSidebarCollapsed);
+  }, [isSidebarCollapsed]);
+
   const sidebarWidth = isSidebarCollapsed ? "w-0 md:w-[90px]" : "w-[255px]";
   const sidebarClassNames = `fixed top-0 left-0 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 dark:border-gray-800 dark:bg-gray-900 bg-white ${sidebarWidth} overflow-hidden`;
+
+  // Gérer l'entrée de la souris
+  const handleMouseEnter = () => {
+    if (isSidebarCollapsed) {
+      setIsHovered(true);
+      // Ouvrir le sidebar en modifiant l'état global
+      dispatch(toggleSidebar());
+    }
+  };
+
+  // Gérer la sortie de la souris
+  const handleMouseLeave = () => {
+    if (isHovered) {
+      setIsHovered(false);
+      // Restaurer l'état original du sidebar
+      if (!originalSidebarState) {
+        dispatch(toggleSidebar());
+      }
+    }
+  };
 
   return (
     <>
@@ -52,7 +80,11 @@ const Sidebar = () => {
           aria-hidden="true"
         />
       )}
-      <aside className={sidebarClassNames}>
+      <aside
+        className={sidebarClassNames}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-center border-b border-gray-200 p-3 dark:border-gray-800">
             <Link href="/">
@@ -88,31 +120,25 @@ const Sidebar = () => {
             <div className="mt-4 space-y-1">
               <SidebarLink
                 icon={Home}
-                label="Home"
+                label="Tableau de bord"
                 href="/home"
                 isCollapsed={isSidebarCollapsed}
               />
               <SidebarLink
-                icon={Inbox}
-                label="BoiteRéception"
-                href="/chat"
-                isCollapsed={isSidebarCollapsed}
-              />
-              <SidebarLink
                 icon={FileChartLine}
-                label="Rapport"
+                label="Rapports"
                 href="/rapport"
                 isCollapsed={isSidebarCollapsed}
               />
               <SidebarLink
                 icon={Video}
-                label="Join Meet"
+                label="Réunions"
                 href="/meeting"
                 isCollapsed={isSidebarCollapsed}
               />
               <SidebarLink
                 icon={Users}
-                label="Teams"
+                label="Équipes"
                 href="/teams"
                 isCollapsed={isSidebarCollapsed}
               />
@@ -124,7 +150,7 @@ const Sidebar = () => {
               />
               <SidebarLink
                 icon={User}
-                label="Profile"
+                label="Profil"
                 href="/profile"
                 isCollapsed={isSidebarCollapsed}
               />
@@ -258,12 +284,12 @@ const SidebarLink = ({
       <div
         className={`relative flex cursor-pointer items-center gap-3 px-4 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
           isActive
-            ? "bg-gray-100 text-blue-600 dark:bg-gray-700"
+            ? "bg-gray-100 text-violet-600 dark:bg-gray-700"
             : "text-gray-800 dark:text-gray-100"
         }`}
       >
         {isActive && !isCollapsed && (
-          <div className="absolute left-0 top-0 h-full w-[5px] bg-blue-500" />
+          <div className="absolute left-0 top-0 h-full w-[5px] bg-violet-500" />
         )}
         <Icon className="h-6 w-6" />
         {!isCollapsed && <span className="font-medium">{label}</span>}

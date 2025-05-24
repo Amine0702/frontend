@@ -1,14 +1,9 @@
 "use client";
 
 import {
-  useStreamVideoClient,
-  Call,
   StreamCall,
   StreamTheme,
-  SpeakerLayout,
-  CallControls,
   useCallStateHooks,
-  useCall,
   VideoPreview,
   DeviceSettings,
   CallingState,
@@ -19,7 +14,7 @@ import useLoadCall from "../hooks/useLoadCall";
 import { useUser } from "@clerk/nextjs";
 import useStreamCall from "../hooks/useStreamCall";
 import Link from "next/link";
-import Button, { buttonClassName } from "@/app/meeting/components/Button";
+import { buttonClassName } from "@/app/meeting/components/Button";
 import PermissionPrompt from "../components/PermissionPrompt";
 import AudioVolumeIndicator from "../components/AudioVolumeIndicator";
 import FlexibleCallLayout from "../components/FlexibleCallLayouts";
@@ -39,7 +34,7 @@ export default function MeetingPage({ id }: MeetingPageProps) {
   }
 
   if (!call) {
-    return <p className="text-center font-bold">Call not found</p>;
+    return <p className="text-center font-bold">Réunion non trouvée</p>;
   }
 
   const notAllowedToJoin =
@@ -49,7 +44,7 @@ export default function MeetingPage({ id }: MeetingPageProps) {
   if (notAllowedToJoin) {
     return (
       <p className="text-center font-bold">
-        You are not allowed to view this meeting
+        Vous n'êtes pas autorisé à voir cette réunion
       </p>
     );
   }
@@ -94,7 +89,8 @@ function MeetingScreen() {
     <div className="space-y-6">
       {description && (
         <p className="text-center">
-          Meeting description: <span className="font-bold">{description}</span>
+          Description de la réunion :{" "}
+          <span className="font-bold">{description}</span>
         </p>
       )}
       {setupComplete ? (
@@ -136,7 +132,7 @@ function SetupUI({ onSetupComplete }: SetupUIProps) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <h1 className="text-center text-2xl font-bold">Setup</h1>
+      <h1 className="text-center text-2xl font-bold">Configuration</h1>
       <VideoPreview />
       <div className="flex h-16 items-center gap-3">
         <AudioVolumeIndicator />
@@ -145,23 +141,23 @@ function SetupUI({ onSetupComplete }: SetupUIProps) {
       <div className="flex items-center gap-2 font-medium">
         <input
           type="checkbox"
-          className="h-4 w-4" // Taille forcée pour éviter les différences d'affichage
+          className="h-4 w-4"
           style={{
             WebkitAppearance: "checkbox",
             MozAppearance: "checkbox",
             appearance: "checkbox",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
           checked={micCamDisabled}
           onChange={(e) => setMicCamDisabled(e.target.checked)}
         />
-        Join with mic and camera off
+        Rejoindre avec micro et caméra désactivés
       </div>
       <button
         className="flex items-center rounded bg-blue-primary px-3 py-2 text-white hover:bg-blue-600"
         onClick={onSetupComplete}
       >
-        Join meeting
+        Rejoindre la réunion
       </button>
     </div>
   );
@@ -185,19 +181,19 @@ function UpcomingMeetingScreen() {
   return (
     <div className="flex flex-col items-center gap-6">
       <p>
-        This meeting has not started yet. It will start at{" "}
+        Cette réunion n'a pas encore commencé. Elle débutera le{" "}
         <span className="font-bold">
           {call.state.startsAt?.toLocaleString()}
         </span>
       </p>
       {call.state.custom.description && (
         <p>
-          Description:{" "}
+          Description :{" "}
           <span className="font-bold">{call.state.custom.description}</span>
         </p>
       )}
       <Link href="/meeting" className={buttonClassName}>
-        Go home
+        Retour à l'accueil
       </Link>
     </div>
   );
@@ -206,12 +202,12 @@ function UpcomingMeetingScreen() {
 function MeetingEndedScreen() {
   return (
     <div className="flex flex-col items-center gap-6">
-      <p className="font-bold">This meeting has ended.</p>
+      <p className="font-bold">Cette réunion est terminée.</p>
       <Link href="/meeting" className={buttonClassName}>
-        Go home
+        Retour à l'accueil
       </Link>
       <div className="space-y-3">
-        <h2 className="text-center text-xl font-bold">Recordings</h2>
+        <h2 className="text-center text-xl font-bold">Enregistrements</h2>
         <RecordingsList />
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   XMarkIcon,
   InformationCircleIcon,
   ArrowLeftIcon,
+  CalendarIcon,
 } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -29,17 +30,17 @@ const bleuAccent = "#3B82F6"; // Pour harmoniser la palette
 // Étiquettes de statut pour affichage
 const libellesStatut: Record<string, string> = {
   all: "Tous",
-  completed: "Terminée",
-  active: "En cours",
-  delayed: "En retard",
-  planned: "Planifiée",
+  Terminé: "Terminée",
+  "En cours": "En cours",
+  "En révision": "En révision",
+  "À faire": "À faire",
 };
 
 // Interfaces pour les données
 interface Task {
   id: string | number;
   title: string;
-  status: "planned" | "active" | "completed" | "delayed";
+  status: string;
   predictedDelay: number;
   confidenceLevel: number;
   progress: number;
@@ -59,6 +60,13 @@ interface Project {
   tasks: Task[];
 }
 
+// Fonction pour vérifier si une tâche est terminée
+const isTaskCompleted = (status: string) => {
+  return (
+    status.toLowerCase() === "terminé" || status.toLowerCase() === "completed"
+  );
+};
+
 // Composant affichant le cycle de vie d'un projet
 function ProjectCycleCard({
   project,
@@ -68,7 +76,7 @@ function ProjectCycleCard({
   onBack: () => void;
 }) {
   const [filterStatus, setFilterStatus] = useState<
-    "all" | "completed" | "active" | "delayed" | "planned"
+    "all" | "Terminé" | "En révision" | "En cours" | "À faire"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -150,26 +158,26 @@ function ProjectCycleCard({
           />
         </div>
         <div className="flex flex-wrap gap-4">
-          {(["all", "completed", "active", "delayed", "planned"] as const).map(
-            (status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                style={
-                  filterStatus === status
-                    ? { backgroundColor: couleurPrimaire, color: "white" }
-                    : {}
-                }
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ${
-                  filterStatus === status
-                    ? ""
-                    : "bg-purple-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300"
-                }`}
-              >
-                {libellesStatut[status]}
-              </button>
-            ),
-          )}
+          {(
+            ["all", "Terminé", "En révision", "En cours", "À faire"] as const
+          ).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              style={
+                filterStatus === status
+                  ? { backgroundColor: couleurPrimaire, color: "white" }
+                  : {}
+              }
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 ${
+                filterStatus === status
+                  ? ""
+                  : "bg-purple-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300"
+              }`}
+            >
+              {libellesStatut[status]}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -178,6 +186,8 @@ function ProjectCycleCard({
         <div className="grid min-w-[800px] grid-cols-1 gap-4 md:min-w-0 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredTasks.map((task) => {
             const { border, bg, progress } = getStatusStyles(task.status);
+            const taskCompleted = isTaskCompleted(task.status);
+
             return (
               <motion.div
                 key={task.id}
@@ -215,12 +225,36 @@ function ProjectCycleCard({
                       transition={{ duration: 1 }}
                     />
                   </div>
-                  {task.predictedDelay > 0 && (
-                    <div className="mt-2 flex items-center gap-2 text-rose-600">
-                      <ExclamationTriangleIcon className="h-4 w-4" />
-                      <span className="text-sm">
-                        Retard prévu: {task.predictedDelay} jour
-                        {task.predictedDelay > 1 ? "s" : ""}
+                  {/* Affichage conditionnel du retard - seulement pour les tâches non terminées */}
+                  {!taskCompleted && task.predictedDelay !== 0 && (
+                    <div
+                      className={`mt-2 flex items-center gap-2 ${task.predictedDelay > 0 ? "text-rose-600" : "text-green-600"}`}
+                    >
+                      {task.predictedDelay > 0 ? (
+                        <>
+                          <ExclamationTriangleIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            Retard: {task.predictedDelay} jour
+                            {task.predictedDelay > 1 ? "s" : ""}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <CalendarIcon className="h-4 w-4" />
+                          <span className="text-sm">
+                            Reste: {Math.abs(task.predictedDelay)} jour
+                            {Math.abs(task.predictedDelay) > 1 ? "s" : ""}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Affichage pour les tâches terminées */}
+                  {taskCompleted && (
+                    <div className="mt-2 flex items-center gap-2 text-green-600">
+                      <CheckCircleIcon className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Tâche terminée
                       </span>
                     </div>
                   )}
@@ -245,6 +279,9 @@ function ProjectCycleCard({
           <span className="h-3 w-3 rounded-full bg-green-400" /> Terminée
         </div>
         <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-blue-400" /> En révision
+        </div>
+        <div className="flex items-center gap-2">
           <span
             className="h-3 w-3 rounded-full"
             style={{ backgroundColor: couleurPrimaire }}
@@ -252,10 +289,7 @@ function ProjectCycleCard({
           En cours
         </div>
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-rose-400" /> En retard
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-gray-300" /> Planifiée
+          <span className="h-3 w-3 rounded-full bg-gray-300" /> À faire
         </div>
       </div>
 
@@ -306,13 +340,32 @@ function ProjectCycleCard({
                   Priorité : {selectedTask.priority}
                 </p>
               )}
-              {selectedTask.predictedDelay > 0 && (
-                <p className="mb-2 text-sm text-rose-600">
-                  Retard prévu : {selectedTask.predictedDelay} jour
-                  {selectedTask.predictedDelay > 1 ? "s" : ""}
-                  <span className="ml-2 text-xs text-slate-500">
-                    (confiance: {selectedTask.confidenceLevel}%)
-                  </span>
+              {/* Affichage conditionnel du retard dans le modal - seulement pour les tâches non terminées */}
+              {!isTaskCompleted(selectedTask.status) &&
+                selectedTask.predictedDelay !== 0 && (
+                  <p
+                    className={`mb-2 text-sm ${selectedTask.predictedDelay > 0 ? "text-rose-600" : "text-green-600"}`}
+                  >
+                    {selectedTask.predictedDelay > 0 ? (
+                      <>
+                        Retard : {selectedTask.predictedDelay} jour
+                        {selectedTask.predictedDelay > 1 ? "s" : ""}
+                      </>
+                    ) : (
+                      <>
+                        Reste : {Math.abs(selectedTask.predictedDelay)} jour
+                        {Math.abs(selectedTask.predictedDelay) > 1 ? "s" : ""}
+                      </>
+                    )}
+                    <span className="ml-2 text-xs text-slate-500">
+                      (confiance: {selectedTask.confidenceLevel}%)
+                    </span>
+                  </p>
+                )}
+              {/* Message pour les tâches terminées */}
+              {isTaskCompleted(selectedTask.status) && (
+                <p className="mb-2 text-sm font-medium text-green-600">
+                  ✅ Tâche terminée avec succès
                 </p>
               )}
               {selectedTask.description && (
@@ -400,15 +453,6 @@ function ProjectList({ onSelect }: { onSelect: (projectId: number) => void }) {
               <p>Chef : {project.manager?.name || "Non assigné"}</p>
               <p>Équipe : {project.team} membres</p>
             </div>
-            <div className="mt-4 flex items-center">
-              <div className="mr-2 h-2.5 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-2.5 rounded-full bg-purple-600"
-                  style={{ width: `${project.progress}%` }}
-                ></div>
-              </div>
-              <span className="text-sm font-medium">{project.progress}%</span>
-            </div>
           </motion.div>
         ))}
       </div>
@@ -418,26 +462,26 @@ function ProjectList({ onSelect }: { onSelect: (projectId: number) => void }) {
 
 // Styles dynamiques selon le statut
 const getStatusStyles = (status: string) => {
-  switch (status) {
-    case "completed":
+  switch (status.toLowerCase()) {
+    case "terminé":
       return {
         border: "border-green-300 dark:border-green-400",
         bg: "bg-green-50 dark:bg-green-900/20",
         progress: "bg-green-400",
       };
-    case "active":
+    case "en révision":
+      return {
+        border: "border-blue-300 dark:border-blue-400",
+        bg: "bg-blue-50 dark:bg-blue-900/20",
+        progress: "bg-blue-400",
+      };
+    case "en cours":
       return {
         border: "border-purple-300 dark:border-purple-400",
         bg: "bg-purple-50 dark:bg-purple-900/20",
         progress: "bg-purple-400",
       };
-    case "delayed":
-      return {
-        border: "border-rose-300 dark:border-rose-400",
-        bg: "bg-rose-50 dark:bg-rose-900/20",
-        progress: "bg-rose-400",
-      };
-    case "planned":
+    case "à faire":
       return {
         border: "border-gray-200 dark:border-slate-700",
         bg: "bg-gray-50 dark:bg-slate-700",
@@ -453,27 +497,24 @@ const getStatusStyles = (status: string) => {
 };
 
 // Icône selon le statut de la tâche
-const getStatusIcon = (status: Task["status"]) => {
-  switch (status) {
-    case "completed":
+const getStatusIcon = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "terminé":
       return (
         <CheckCircleIcon className="h-5 w-5" style={{ color: vertAccent }} />
       );
-    case "active":
+    case "en révision":
+      return (
+        <ArrowPathIcon className="h-5 w-5" style={{ color: bleuAccent }} />
+      );
+    case "en cours":
       return (
         <PlayIcon className="h-5 w-5" style={{ color: couleurPrimaire }} />
       );
-    case "delayed":
-      return (
-        <ExclamationTriangleIcon
-          className="h-5 w-5"
-          style={{ color: orangeAccent }}
-        />
-      );
-    case "planned":
+    case "à faire":
       return <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500" />;
     default:
-      return null;
+      return <EllipsisHorizontalIcon className="h-5 w-5 text-gray-500" />;
   }
 };
 

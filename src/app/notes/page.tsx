@@ -76,8 +76,19 @@ const Index = () => {
 
   // Récupérer l'ID utilisateur de Clerk depuis le localStorage
   useEffect(() => {
-    const userId = localStorage.getItem("currentUserId");
-    setClerkUserId(userId);
+    // Récupérer l'ID utilisateur depuis le localStorage où il est stocké lors de l'authentification
+    const userId = localStorage.getItem("clerkUserId");
+    if (userId) {
+      setClerkUserId(userId);
+      console.log("ID utilisateur Clerk récupéré:", userId);
+    } else {
+      // Fallback: essayer de récupérer depuis currentUserId (ancienne méthode)
+      const currentUserId = localStorage.getItem("currentUserId");
+      if (currentUserId) {
+        setClerkUserId(currentUserId);
+        console.log("ID utilisateur courant récupéré:", currentUserId);
+      }
+    }
   }, []);
 
   const [newIdea, setNewIdea] = useState("");
@@ -99,6 +110,8 @@ const Index = () => {
     refetch,
   } = useGetUserNotesQuery(clerkUserId, {
     skip: !clerkUserId,
+    // Ajouter un refetchOnMountOrArgChange pour s'assurer que les données sont à jour
+    refetchOnMountOrArgChange: true,
   });
 
   const [createNote, { isLoading: isCreating }] = useCreateNoteMutation();
@@ -283,6 +296,18 @@ const Index = () => {
 
   const deleteIdea = async (id: number) => {
     try {
+      console.log(`Suppression de la note avec ID: ${id}`);
+
+      if (!id || isNaN(id)) {
+        console.error("ID de note invalide:", id);
+        toast({
+          title: "Erreur",
+          description: "Impossible de supprimer cette note: ID invalide.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await deleteNote(id).unwrap();
       refetch(); // Rafraîchir la liste des notes
 
@@ -302,12 +327,18 @@ const Index = () => {
     }
   };
 
+  // Modifier la fonction updateStatus pour mieux gérer les erreurs
   const updateStatus = async (id: number, newStatus: string) => {
     try {
-      await updateNote({
+      console.log(`Mise à jour du statut de la note ${id} vers ${newStatus}`);
+
+      const result = await updateNote({
         id,
         status: newStatus,
       }).unwrap();
+
+      console.log("Résultat de la mise à jour:", result);
+
       refetch(); // Rafraîchir la liste des notes
 
       toast({
@@ -416,7 +447,7 @@ const Index = () => {
   // Dropdown de changement de statut
   const StatusChangeDropdown = ({ idea }: { idea: Idea }) => {
     return (
-      <div className="group relative">
+      <div className="group relative overflow-visible">
         <Button
           size="sm"
           variant="ghost"
@@ -434,7 +465,8 @@ const Index = () => {
             )}
           </div>
         </Button>
-        <div className="invisible absolute right-0 z-10 mt-2 min-w-[160px] rounded-lg border border-purple-200 bg-white p-2 opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100 dark:border-purple-800 dark:bg-gray-800">
+
+        <div className="/* ← on positionne au-dessus du bouton */ /* ← petit espace sous le dropdown */ /* ← s'assure d'être devant tous */ invisible absolute bottom-full right-0 z-50 mb-2 min-w-[160px] rounded-lg border border-purple-200 bg-white p-2 opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100 dark:border-purple-800 dark:bg-gray-800">
           {STATUSES.map(
             (status) =>
               status !== idea.status && (
@@ -454,7 +486,13 @@ const Index = () => {
                   ) : (
                     <Plus className="mr-2 h-4 w-4 text-purple-600 dark:text-purple-400" />
                   )}
-                  {status}
+                  {status === "Completed"
+                    ? "Terminé"
+                    : status === "In Progress"
+                      ? "En cours"
+                      : status === "Pending"
+                        ? "En attente"
+                        : "Nouveau"}
                 </Button>
               ),
           )}

@@ -6,15 +6,13 @@ import {
   ArrowTrendingUpIcon,
   BriefcaseIcon,
   ClockIcon,
-  LightBulbIcon,
-  RocketLaunchIcon,
-  SparklesIcon,
   DocumentTextIcon,
   UserGroupIcon,
   CheckCircleIcon,
   PresentationChartLineIcon,
   CheckIcon,
   XMarkIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import {
   LineChart,
@@ -24,15 +22,27 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { motion } from "framer-motion";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import React from "react";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createGlobalStyle } from "styled-components";
-import { useGetDashboardDataQuery } from "@/app/state/api";
+import {
+  useGetDashboardDataQuery,
+  useGetRecentActivitiesQuery,
+  useGetUserDetailsByIdQuery,
+  useGetProjectStatsByMonthQuery,
+  useGetPendingProjectsQuery,
+  useApproveProjectMutation,
+  useRejectProjectMutation,
+  useGetProjectQuery,
+} from "@/app/state/api";
 import type { BackendTeamMember } from "@/app/projects/types/kanban";
 import { ConfirmationModal } from "../../../components/confirmation-modal";
 
@@ -42,6 +52,7 @@ const GlobalStyle = createGlobalStyle`
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
+    display: block;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -56,187 +67,6 @@ const GlobalStyle = createGlobalStyle`
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(139, 92, 246, 0.7);
-  }
-
-  
-  
-  /* Empêcher le défilement horizontal dans le calendrier */
-  .rdp-months {
-    width: 100% !important;
-    justify-content: center !important;
-  }
-  
-  .rdp-month {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  .rdp-table {
-    width: 100% !important;
-    max-width: 100% !important;
-    table-layout: fixed !important;
-  }
-  
-  .rdp-head_cell {
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    font-size: 0.75rem !important;
-    text-align: center !important;
-    padding: 0.5rem 0 !important;
-    color: #6b7280 !important;
-  }
-  
-  .rdp-cell {
-    padding: 0 !important;
-    text-align: center !important;
-    height: 40px !important;
-  }
-  
-  .rdp-button {
-    width: 100% !important;
-    max-width: 40px !important;
-    height: 40px !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 9999px !important;
-  }
-  
-  /* Style pour les jours du mois actuel */
-  .rdp-day_today:not(.rdp-day_outside) {
-    background-color: rgba(139, 92, 246, 0.1) !important;
-    font-weight: bold !important;
-  }
-  
-  /* Style pour les jours des autres mois */
-  .rdp-day_outside {
-    opacity: 0.5 !important;
-  }
-
-  /* Styles pour les jours avec événements */
-  .day-with-event {
-    position: relative;
-  }
-  
-  .day-with-event::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 5px;
-    height: 5px;
-    background-color: #8B5CF6;
-    border-radius: 50%;
-  }
-
-  /* Style pour aujourd'hui */
-  .today-circle {
-    position: relative;
-  }
-  
-  .today-circle::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 2px solid #8B5CF6;
-    border-radius: 9999px;
-  }
-  
-  /* Style pour le calendrier personnalisé */
-  .custom-calendar {
-    width: 100%;
-    border-collapse: collapse;
-    dark:color: #e2e8f0;
-  }
-  
-  .custom-calendar th {
-    padding: 8px 0;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: #6b7280;
-  }
-
-  .dark .custom-calendar th {
-    color: #ffffff;
-  }
-
-  .dark .custom-calendar-day {
-    color: #ffffff;
-  }
-  
-  .custom-calendar td {
-    padding: 0;
-    text-align: center;
-    height: 40px;
-    width: calc(100% / 7);
-  }
-  
-  .custom-calendar-day {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    position: relative;
-  }
-  
-  .custom-calendar-day:hover {
-    background-color: rgba(139, 92, 246, 0.1);
-    dark:background-color: rgba(139, 92, 246, 0.3);
-  }
-  
-  .custom-calendar-day.today {
-    background-color: rgba(139, 92, 246, 0.1);
-    font-weight: bold;
-    dark:background-color: rgba(139, 92, 246, 0.3);
-    dark:color: white;
-  }
-  
-  .custom-calendar-day.selected {
-    background-color: #8B5CF6;
-    color: white;
-    dark:background-color: #8B5CF6;
-    dark:color: white;
-  }
-  
-  .custom-calendar-day.other-month {
-    opacity: 0.5;
-    dark:opacity: 0.3;
-  }
-  
-  .custom-calendar-day.has-event::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 5px;
-    height: 5px;
-    background-color: #8B5CF6;
-    border-radius: 50%;
-    dark:background-color: #c4b5fd;
-  }
-
-  /* Améliorer la visibilité des jours avec événements */
-  .custom-calendar-day .event-indicator {
-    position: absolute;
-    bottom: 1px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 5px;
-    height: 5px;
-    background-color: #8B5CF6;
-    border-radius: 50%;
-    dark:background-color: #c4b5fd;
   }
 
   /* Ajouter des styles pour les échelles du graphique en mode sombre */
@@ -254,31 +84,28 @@ const GlobalStyle = createGlobalStyle`
   .dark .close-button {
     color: #ffffff !important;
   }
+  
+  /* Améliorer la visibilité des pourcentages en mode sombre */
+  .dark .task-percentage {
+    color: #ffffff !important;
+  }
+  
+  /* Style pour masquer la scrollbar tout en permettant le défilement */
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
-// Ajouter cette déclaration au début du fichier, juste après les imports
-declare global {
-  interface Window {
-    calendarEvents?: CalendarEvent[];
-    selectedCalendarDate?: string;
-  }
-}
-
 /* =================== Types & Interfaces =================== */
-
-interface CalendarEvent {
-  id: string;
-  date: string;
-  title: string;
-  notes: string;
-  time: string;
-  invitees: string[];
-}
 
 type ModalType =
   | "projets_actifs"
   | "taches_completees"
-  | "calendrier"
   | "activite_recente"
   | "taches_en_cours"
   | "projets_termines"
@@ -290,6 +117,8 @@ type ModalType =
   | "equipe_details"
   | "member_details"
   | "projets_en_attente"
+  | "repartition_taches"
+  | "projet_repartition_taches"
   | null;
 
 interface Project {
@@ -326,22 +155,13 @@ interface Task {
   assignedTo: string;
   assignee?: BackendTeamMember;
   deadline: string;
-  priority: "high" | "medium" | "low";
+  priority: "basse" | "moyenne" | "haute" | "urgente";
   description: string;
   due_date: string;
   assignee_id: number | null;
   project_name?: string;
-}
-
-interface Meeting {
-  title: string;
-  time: string;
-  details: string;
-}
-
-interface Message {
-  from: string;
-  message: string;
+  project_id?: number;
+  status?: string;
 }
 
 interface Activity {
@@ -349,12 +169,6 @@ interface Activity {
   user: string;
   action: string;
   time: string;
-}
-
-interface QuickAction {
-  icon: React.ReactElement;
-  label: string;
-  color: string;
 }
 
 interface ModalProps {
@@ -366,7 +180,6 @@ interface ModalProps {
 interface StatBlockProps {
   title: string;
   value: string;
-  change: string;
   icon: React.ReactElement;
   onClick?: () => void;
 }
@@ -376,10 +189,6 @@ interface ClickableProps {
 }
 
 interface ProjectTimelineProps extends ClickableProps {}
-
-interface CalendarWidgetProps extends ClickableProps {
-  className?: string;
-}
 
 interface RecentActivityProps extends ClickableProps {
   className?: string;
@@ -410,16 +219,6 @@ interface TeamGroup {
   members: TeamMember[];
 }
 
-interface InnovationDetail {
-  title: string;
-  description: string;
-  benefits: string[];
-  timeline: string;
-  budget: string;
-  team: string[];
-  steps: { title: string; description: string }[];
-}
-
 interface NotificationState {
   show: boolean;
   title: string;
@@ -437,215 +236,12 @@ const colors = {
   text: "#1E293B",
 };
 
-const data = [
-  { name: "Jan", value: 65, details: "Objectif intermédiaire atteint" },
-  { name: "Fév", value: 78, details: "Bonne progression" },
-  { name: "Mar", value: 83, details: "Baisse de rythme" },
-  { name: "Avr", value: 92, details: "Excellente performance" },
-  { name: "Mai", value: 81, details: "Objectif presque atteint" },
-];
-
-const innovationIdeas = [
-  {
-    icon: <LightBulbIcon className="h-6 w-6" />,
-    title: "IA Prédictive",
-    description:
-      "Utiliser l'IA pour prédire les tendances du marché et anticiper les besoins clients.",
-    color: "bg-purple-100 dark:bg-purple-900/30",
-  },
-  {
-    icon: <RocketLaunchIcon className="h-6 w-6" />,
-    title: "Expansion Internationale",
-    description:
-      "Stratégie d'expansion sur les marchés asiatiques et américains.",
-    color: "bg-blue-100 dark:bg-blue-900/30",
-  },
-  {
-    icon: <SparklesIcon className="h-6 w-6" />,
-    title: "Produit Innovant",
-    description:
-      "Développement d'une solution révolutionnaire basée sur la blockchain.",
-    color: "bg-amber-100 dark:bg-amber-900/30",
-  },
-];
-
-// Ajouter des données pour les détails d'innovation
-const innovationDetails: Record<string, InnovationDetail> = {
-  "IA Prédictive": {
-    title: "Intelligence Artificielle Prédictive",
-    description:
-      "Utilisation de l'IA pour analyser les données historiques et prédire les tendances futures du marché, permettant une prise de décision proactive et stratégique.",
-    benefits: [
-      "Anticipation des besoins clients",
-      "Optimisation des stocks et de la chaîne d'approvisionnement",
-      "Détection précoce des opportunités de marché",
-      "Réduction des risques commerciaux",
-    ],
-    timeline: "6-8 mois",
-    budget: "150 000 €",
-    team: ["Data Scientists", "Analystes Business", "Développeurs IA"],
-    steps: [
-      {
-        title: "Collecte de données",
-        description:
-          "Rassembler et structurer les données historiques de l'entreprise",
-      },
-      {
-        title: "Développement d'algorithmes",
-        description:
-          "Créer des modèles prédictifs basés sur le machine learning",
-      },
-      {
-        title: "Phase de test",
-        description: "Valider la précision des prédictions sur des cas réels",
-      },
-      {
-        title: "Déploiement",
-        description: "Intégrer la solution dans les systèmes existants",
-      },
-      {
-        title: "Formation",
-        description: "Former les équipes à l'utilisation des insights générés",
-      },
-    ],
-  },
-  "Expansion Internationale": {
-    title: "Stratégie d'Expansion Internationale",
-    description:
-      "Plan stratégique pour pénétrer les marchés asiatiques et américains, en adaptant nos produits et services aux spécificités locales tout en maintenant notre identité de marque.",
-    benefits: [
-      "Diversification des revenus",
-      "Réduction de la dépendance aux marchés actuels",
-      "Accès à de nouveaux segments de clientèle",
-      "Renforcement de la notoriété mondiale",
-    ],
-    timeline: "12-18 mois",
-    budget: "500 000 €",
-    team: [
-      "Responsables Régionaux",
-      "Équipe Marketing International",
-      "Juristes Internationaux",
-    ],
-    steps: [
-      {
-        title: "Étude de marché",
-        description:
-          "Analyser les opportunités et contraintes des marchés cibles",
-      },
-      {
-        title: "Adaptation produit",
-        description: "Modifier les offres pour répondre aux besoins locaux",
-      },
-      {
-        title: "Partenariats locaux",
-        description: "Identifier et établir des partenariats stratégiques",
-      },
-      {
-        title: "Conformité réglementaire",
-        description: "S'assurer du respect des lois et normes locales",
-      },
-      {
-        title: "Lancement",
-        description:
-          "Déployer progressivement la présence sur les nouveaux marchés",
-      },
-    ],
-  },
-  "Produit Innovant": {
-    title: "Solution Blockchain Révolutionnaire",
-    description:
-      "Développement d'une plateforme basée sur la blockchain pour sécuriser et optimiser les transactions et la gestion des données, offrant une transparence et une sécurité inégalées.",
-    benefits: [
-      "Sécurité renforcée des données",
-      "Réduction des coûts de transaction",
-      "Élimination des intermédiaires",
-      "Traçabilité complète des opérations",
-    ],
-    timeline: "10-12 mois",
-    budget: "300 000 €",
-    team: [
-      "Ingénieurs Blockchain",
-      "Architectes Système",
-      "Experts en Sécurité",
-    ],
-    steps: [
-      {
-        title: "Conception",
-        description:
-          "Définir l'architecture et les fonctionnalités de la solution",
-      },
-      {
-        title: "Prototype",
-        description: "Développer une version minimale viable",
-      },
-      {
-        title: "Tests de sécurité",
-        description: "Vérifier la robustesse contre les attaques potentielles",
-      },
-      {
-        title: "Bêta-test",
-        description: "Déployer auprès d'un groupe restreint d'utilisateurs",
-      },
-      {
-        title: "Lancement commercial",
-        description: "Déploiement complet et campagne marketing",
-      },
-    ],
-  },
+const PRIORITY_COLORS = {
+  basse: "#10B981", // vert
+  moyenne: "#F59E0B", // ambre
+  haute: "#EF4444", // rouge
+  urgente: "#7C3AED", // violet foncé
 };
-
-// Exemple de données d'événements prédéfinies pour le calendrier
-const exampleEvents: CalendarEvent[] = [
-  {
-    id: "1",
-    date: format(new Date(), "yyyy-MM-dd"),
-    title: "Réunion équipe",
-    notes: "Revue des objectifs trimestriels",
-    time: "10:00",
-    invitees: ["alice@example.com", "bob@example.com"],
-  },
-  {
-    id: "2",
-    date: format(addDays(new Date(), 2), "yyyy-MM-dd"),
-    title: "Présentation client",
-    notes: "Démonstration de la nouvelle interface",
-    time: "14:30",
-    invitees: ["alice@example.com"],
-  },
-];
-
-const recentActivities: Activity[] = [
-  {
-    id: 1,
-    user: "Alice",
-    action: "a mis à jour le projet X",
-    time: "Il y a 2 heures",
-  },
-  {
-    id: 2,
-    user: "Bob",
-    action: "a commenté la tâche Y",
-    time: "Il y a 5 heures",
-  },
-  {
-    id: 3,
-    user: "Charlie",
-    action: "a créé un nouveau projet Z",
-    time: "Il y a 1 jour",
-  },
-  {
-    id: 4,
-    user: "David",
-    action: "a terminé la tâche A",
-    time: "Il y a 2 jours",
-  },
-  {
-    id: 5,
-    user: "Eve",
-    action: "a rejoint l'équipe B",
-    time: "Il y a 3 jours",
-  },
-];
 
 /* =================== Composants =================== */
 
@@ -684,7 +280,6 @@ const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => (
 const StatBlock: React.FC<StatBlockProps> = ({
   title,
   value,
-  change,
   icon,
   onClick,
 }) => (
@@ -706,7 +301,6 @@ const StatBlock: React.FC<StatBlockProps> = ({
         </p>
         <div className="mt-2 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
           <ArrowTrendingUpIcon className="h-4 w-4" />
-          <span>{change}</span>
         </div>
       </div>
     </div>
@@ -728,13 +322,18 @@ const ProjectTimeline: React.FC<
         <BriefcaseIcon className="h-7 w-7 text-purple-600" />
         Projets prioritaires
       </h3>
-      <div className="custom-scrollbar max-h-[400px] space-y-6 overflow-y-auto pr-2">
+      <div
+        className="hide-scrollbar space-y-6 overflow-y-auto pr-2"
+        style={{ maxHeight: "400px" }}
+      >
         {priorityProjects.length > 0 ? (
           priorityProjects.map((project) => (
             <div key={project.id} className="space-y-3">
               <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
                 <span>{project.name}</span>
-                <span className="text-slate-500">{project.deadline}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {project.deadline}
+                </span>
               </div>
               <div className="relative h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                 <motion.div
@@ -762,43 +361,78 @@ const ProjectTimeline: React.FC<
   );
 };
 
-// Modifier le composant RecentActivity pour supprimer la barre de défilement horizontale
+// Remplacer le composant RecentActivity par celui qui utilise l'API
+// Modifier le composant RecentActivity pour utiliser useGetRecentActivitiesQuery
 const RecentActivity: React.FC<RecentActivityProps> = ({
   onClick,
   className,
-}) => (
-  <motion.div
-    onClick={onClick}
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`flex h-full cursor-pointer flex-col rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition-all hover:border-purple-200 dark:border-slate-700 dark:bg-slate-800 ${className || ""}`}
-  >
-    <h3 className="mb-4 flex items-center gap-3 text-xl font-semibold text-slate-800 dark:text-white">
-      <ClockIcon className="h-7 w-7 text-purple-600" />
-      Activité Récente
-    </h3>
-    <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto overflow-x-hidden">
-      {recentActivities.map((activity) => (
-        <motion.div
-          key={activity.id}
-          className="flex items-start gap-4 rounded-lg bg-purple-50/50 p-4 dark:bg-slate-700/50"
-          whileHover={{ x: 5 }}
-        >
-          <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-purple-600" />
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-sm text-slate-800 dark:text-white">
-              <span className="font-medium">{activity.user}</span>{" "}
-              {activity.action}
-            </p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {activity.time}
-            </p>
+}) => {
+  const {
+    data: activitiesData,
+    isLoading,
+    error,
+  } = useGetRecentActivitiesQuery();
+
+  return (
+    <motion.div
+      onClick={onClick}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex h-full cursor-pointer flex-col rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition-all hover:border-purple-200 dark:border-slate-700 dark:bg-slate-800 ${className || ""}`}
+    >
+      <h3 className="mb-4 flex items-center gap-3 text-xl font-semibold text-slate-800 dark:text-white">
+        <ClockIcon className="h-7 w-7 text-purple-600" />
+        Activité Récente
+      </h3>
+      <div
+        className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden pr-2"
+        style={{
+          maxHeight: "300px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
           </div>
-        </motion.div>
-      ))}
-    </div>
-  </motion.div>
-);
+        ) : error ? (
+          <div className="py-8 text-center text-red-500">
+            Erreur lors du chargement des activités récentes
+          </div>
+        ) : activitiesData?.activities?.length > 0 ? (
+          activitiesData.activities.slice(0, 4).map((activity: any) => (
+            <motion.div
+              key={activity.id}
+              className="flex items-start gap-4 rounded-lg bg-purple-50/50 p-4 dark:bg-slate-700/50"
+              whileHover={{ x: 5 }}
+            >
+              <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-purple-600" />
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm text-slate-800 dark:text-white">
+                  <span className="font-medium">{activity.user}</span>{" "}
+                  {activity.action}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {activity.time}
+                </p>
+              </div>
+            </motion.div>
+          ))
+        ) : (
+          <p className="py-8 text-center text-slate-500 dark:text-slate-400">
+            Aucune activité récente
+          </p>
+        )}
+      </div>
+    </motion.div>
+  );
+};
 
 // Composant ProjectSection (affiche tous les projets)
 const ProjectSection: React.FC<ProjectSectionProps> = ({
@@ -809,7 +443,7 @@ const ProjectSection: React.FC<ProjectSectionProps> = ({
   const list = summary ? projects.slice(0, 3) : projects;
   return (
     <motion.div
-      className="rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800"
+      className="rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition-all hover:border-purple-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-purple-400"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -817,7 +451,19 @@ const ProjectSection: React.FC<ProjectSectionProps> = ({
         <BriefcaseIcon className="h-7 w-7 text-purple-600" />
         Projets
       </h3>
-      <div className="space-y-4">
+      <div
+        className="space-y-4 overflow-y-auto pr-2"
+        style={{
+          maxHeight: "400px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
         {list.length > 0 ? (
           list.map((project, index) => (
             <motion.div
@@ -827,6 +473,7 @@ const ProjectSection: React.FC<ProjectSectionProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
+              whileHover={{ x: 5 }}
             >
               <div
                 className="rounded-full p-2"
@@ -852,7 +499,7 @@ const ProjectSection: React.FC<ProjectSectionProps> = ({
                     }}
                   />
                 </div>
-                <p className="mt-1 text-right text-xs text-slate-500">
+                <p className="task-percentage mt-1 text-right text-xs text-slate-500 dark:text-slate-400">
                   {project.progress}%
                 </p>
               </div>
@@ -875,7 +522,7 @@ const TeamGroups: React.FC<{
 }> = ({ onTeamClick, teamGroups }) => {
   return (
     <motion.div
-      className="rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800"
+      className="rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition-all hover:border-purple-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-purple-400"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -883,7 +530,19 @@ const TeamGroups: React.FC<{
         <UserGroupIcon className="h-7 w-7 text-purple-600" />
         Équipes par Projet
       </h3>
-      <div className="custom-scrollbar max-h-[300px] space-y-4 overflow-y-auto pr-2">
+      <div
+        className="space-y-4 overflow-y-auto pr-2"
+        style={{
+          maxHeight: "300px",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
         {teamGroups.length > 0 ? (
           teamGroups.map((group, index) => (
             <motion.div
@@ -894,6 +553,7 @@ const TeamGroups: React.FC<{
               className="cursor-pointer rounded-lg border-l-4 p-4 transition-colors hover:bg-purple-50/50 dark:hover:bg-slate-700/50"
               style={{ borderColor: group.projectColor }}
               onClick={() => onTeamClick(group.projectName, group.members)}
+              whileHover={{ x: 5 }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -951,6 +611,28 @@ const TaskDetails: React.FC<{ task: Task; onClose: () => void }> = ({
           </h4>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             {task.deadline}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
+          <h4 className="font-medium text-slate-800 dark:text-white">
+            Priorité
+          </h4>
+          <div className="mt-2 flex items-center gap-2">
+            <span
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: PRIORITY_COLORS[task.priority] }}
+            ></span>
+            <p className="text-sm capitalize text-slate-600 dark:text-slate-300">
+              {task.priority}
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
+          <h4 className="font-medium text-slate-800 dark:text-white">Statut</h4>
+          <p className="text-sm capitalize text-slate-600 dark:text-slate-300">
+            {task.status || "En cours"}
           </p>
         </div>
       </div>
@@ -1023,154 +705,117 @@ const TeamDetails: React.FC<{
   </Modal>
 );
 
-// MemberDetails Component
+// Modifier la fonction qui gère le clic sur un membre pour récupérer les détails supplémentaires
+// Remplacer le composant MemberDetails par celui-ci
 const MemberDetails: React.FC<{ member: TeamMember; onClose: () => void }> = ({
   member,
   onClose,
-}) => (
-  <Modal title={`Détails de ${member.name}`} onClose={onClose}>
-    <div className="space-y-4">
-      <div className="flex items-center gap-6">
-        <img
-          src={member.avatar || "/placeholder.svg"}
-          alt={member.name}
-          className="h-20 w-20 rounded-full"
-        />
-        <div>
-          <h4 className="text-lg font-medium text-slate-800 dark:text-white">
-            {member.name}
-          </h4>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            {member.role}
-          </p>
-        </div>
-      </div>
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">
-          Informations de contact
-        </h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Email: {member.email}
-        </p>
-        {member.phone && (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Téléphone: {member.phone}
-          </p>
+}) => {
+  const { data: userDetails, isLoading } = useGetUserDetailsByIdQuery(
+    member.id,
+  );
+
+  return (
+    <Modal title={`Détails de ${member.name}`} onClose={onClose}>
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-6">
+              <img
+                src={member.avatar || "/placeholder.svg"}
+                alt={member.name}
+                className="h-20 w-20 rounded-full"
+              />
+              <div>
+                <h4 className="text-lg font-medium text-slate-800 dark:text-white">
+                  {member.name}
+                </h4>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {member.role}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
+              <h4 className="font-medium text-slate-800 dark:text-white">
+                Informations de contact
+              </h4>
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <span className="font-medium">Email:</span> {member.email}
+                </p>
+                {userDetails?.user?.phone && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">Téléphone:</span>{" "}
+                    {userDetails.user.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
+              <h4 className="font-medium text-slate-800 dark:text-white">
+                Informations supplémentaires
+              </h4>
+              <div className="mt-2 space-y-2">
+                {userDetails?.user?.job_title && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">Poste:</span>{" "}
+                    {userDetails.user.job_title}
+                  </p>
+                )}
+                {userDetails?.user?.location && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">Localisation:</span>{" "}
+                    {userDetails.user.location}
+                  </p>
+                )}
+                {userDetails?.user?.company && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">Entreprise:</span>{" "}
+                    {userDetails.user.company}
+                  </p>
+                )}
+                {member.project && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">Projet:</span>{" "}
+                    {member.project}
+                  </p>
+                )}
+              </div>
+            </div>
+            {userDetails?.user?.bio && (
+              <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
+                <h4 className="font-medium text-slate-800 dark:text-white">
+                  Biographie
+                </h4>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                  {userDetails.user.bio}
+                </p>
+              </div>
+            )}
+          </>
         )}
-        {member.address && (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Adresse: {member.address}
-          </p>
-        )}
+        <Button
+          onClick={onClose}
+          className="bg-purple-600 text-white hover:bg-purple-700"
+        >
+          Fermer
+        </Button>
       </div>
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">
-          Informations supplémentaires
-        </h4>
-        {member.project && (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Projet: {member.project}
-          </p>
-        )}
-        {member.post && (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Poste: {member.post}
-          </p>
-        )}
-      </div>
-      <Button
-        onClick={onClose}
-        className="bg-purple-600 text-white hover:bg-purple-700"
-      >
-        Fermer
-      </Button>
-    </div>
-  </Modal>
-);
-
-interface InnovationDetailsProps {
-  innovation: InnovationDetail;
-  onClose: () => void;
-}
-
-const InnovationDetails: React.FC<InnovationDetailsProps> = ({
-  innovation,
-  onClose,
-}) => (
-  <Modal title={innovation.title} onClose={onClose}>
-    <div className="space-y-4">
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">
-          Description
-        </h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          {innovation.description}
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">
-          Avantages
-        </h4>
-        <ul className="list-inside list-disc text-sm text-slate-600 dark:text-slate-300">
-          {innovation.benefits.map((benefit) => (
-            <li key={benefit}>{benefit}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-          <h4 className="font-medium text-slate-800 dark:text-white">
-            Timeline
-          </h4>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            {innovation.timeline}
-          </p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-          <h4 className="font-medium text-slate-800 dark:text-white">Budget</h4>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            {innovation.budget}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">Équipe</h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          {innovation.team.join(", ")}
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50">
-        <h4 className="font-medium text-slate-800 dark:text-white">Étapes</h4>
-        <ol className="list-inside list-decimal text-sm text-slate-600 dark:text-slate-300">
-          {innovation.steps.map((step, index) => (
-            <li key={index}>
-              <span className="font-medium">{step.title}:</span>{" "}
-              {step.description}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <Button
-        onClick={onClose}
-        className="bg-purple-600 text-white hover:bg-purple-700"
-      >
-        Fermer
-      </Button>
-    </div>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
 // Composant pour afficher les projets en attente d'approbation
 const PendingProjectsSection: React.FC<{
   pendingProjects: PendingProject[];
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
-}> = ({ pendingProjects, onApprove, onReject }) => {
+  isLoading: boolean;
+}> = ({ pendingProjects, onApprove, onReject, isLoading }) => {
   return (
     <motion.div
       className="rounded-2xl border border-amber-200 bg-white/80 p-6 shadow-lg backdrop-blur-sm dark:border-amber-700 dark:bg-slate-800"
@@ -1215,6 +860,7 @@ const PendingProjectsSection: React.FC<{
                   variant="outline"
                   className="border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                   onClick={() => onReject(project.id)}
+                  disabled={isLoading}
                 >
                   <XMarkIcon className="mr-1 h-4 w-4" />
                   Rejeter
@@ -1222,6 +868,7 @@ const PendingProjectsSection: React.FC<{
                 <Button
                   className="bg-green-600 text-white hover:bg-green-700"
                   onClick={() => onApprove(project.id)}
+                  disabled={isLoading}
                 >
                   <CheckIcon className="mr-1 h-4 w-4" />
                   Approuver
@@ -1239,9 +886,436 @@ const PendingProjectsSection: React.FC<{
   );
 };
 
+// Composant pour afficher la liste des projets pour la répartition des tâches
+const ProjectsTaskDistribution: React.FC<{
+  projects: Project[];
+  onProjectSelect: (projectId: number) => void;
+  onClose: () => void;
+}> = ({ projects, onProjectSelect, onClose }) => {
+  return (
+    <Modal title="Répartition des Tâches par Projet" onClose={onClose}>
+      <div className="space-y-6">
+        <p className="text-slate-600 dark:text-slate-300">
+          Sélectionnez un projet pour voir la répartition détaillée des tâches
+          par priorité.
+        </p>
+
+        <div className="custom-scrollbar max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+          {projects.length > 0 ? (
+            projects.map((project) => (
+              <motion.div
+                key={project.id}
+                className="cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-purple-300 hover:bg-purple-50/50 dark:border-slate-700 dark:bg-slate-700/50 dark:hover:border-purple-500 dark:hover:bg-purple-900/20"
+                onClick={() => onProjectSelect(project.id)}
+                whileHover={{ x: 5 }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="rounded-full p-2"
+                      style={{ background: project.color }}
+                    >
+                      <BriefcaseIcon className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-slate-800 dark:text-white">
+                        {project.name}
+                      </h4>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">
+                        Deadline: {project.deadline}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRightIcon className="h-5 w-5 text-slate-400" />
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="w-full">
+                    <div className="mb-1 flex justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Progression
+                      </span>
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {project.progress}%
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-600">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${project.progress}%`,
+                          background: project.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="rounded-lg bg-slate-100 p-8 text-center dark:bg-slate-800">
+              <p className="text-slate-500 dark:text-slate-400">
+                Aucun projet disponible
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Button
+          onClick={onClose}
+          className="bg-purple-600 text-white hover:bg-purple-700"
+        >
+          Fermer
+        </Button>
+      </div>
+    </Modal>
+  );
+};
+
+// Composant pour afficher la répartition des tâches d'un projet spécifique
+const ProjectTaskDistributionDetails: React.FC<{
+  projectId: number;
+  onBack: () => void;
+  onClose: () => void;
+}> = ({ projectId, onBack, onClose }) => {
+  const { data: projectData, isLoading } = useGetProjectQuery(projectId);
+  const [tasksByPriority, setTasksByPriority] = useState<
+    Record<string, Task[]>
+  >({
+    basse: [],
+    moyenne: [],
+    haute: [],
+    urgente: [],
+  });
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [pieChartData, setPieChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (projectData) {
+      // Extraire toutes les tâches de toutes les colonnes
+      const tasks: Task[] = [];
+      const priorityMap: Record<string, Task[]> = {
+        basse: [],
+        moyenne: [],
+        haute: [],
+        urgente: [],
+      };
+
+      projectData.columns.forEach((column: any) => {
+        column.tasks.forEach((task: any) => {
+          // Convertir la tâche au format attendu
+          const formattedTask: Task = {
+            id: task.id,
+            title: task.title,
+            progress:
+              task.status === "terminé"
+                ? "100%"
+                : task.status === "en_révision"
+                  ? "75%"
+                  : task.status === "en_cours"
+                    ? "50%"
+                    : "25%",
+            details: task.description || "Aucune description",
+            assignedTo: task.assignee ? task.assignee.name : "Non assigné",
+            assignee: task.assignee,
+            deadline: task.due_date
+              ? format(new Date(task.due_date), "dd/MM/yy")
+              : "N/A",
+            priority: task.priority || "moyenne",
+            description: task.description || "",
+            due_date: task.due_date || "",
+            assignee_id: task.assignee_id,
+            project_name: projectData.name,
+            project_id: projectData.id,
+            status: task.status,
+          };
+
+          tasks.push(formattedTask);
+
+          // Ajouter la tâche au groupe de priorité correspondant
+          if (priorityMap[formattedTask.priority]) {
+            priorityMap[formattedTask.priority].push(formattedTask);
+          } else {
+            // Si la priorité n'est pas reconnue, la mettre dans "moyenne"
+            priorityMap.moyenne.push(formattedTask);
+          }
+        });
+      });
+
+      setAllTasks(tasks);
+      setTasksByPriority(priorityMap);
+
+      // Préparer les données pour le graphique en camembert
+      const chartData = [
+        {
+          name: "Basse",
+          value: priorityMap.basse.length,
+          color: PRIORITY_COLORS.basse,
+          percentage: "0%",
+        },
+        {
+          name: "Moyenne",
+          value: priorityMap.moyenne.length,
+          color: PRIORITY_COLORS.moyenne,
+          percentage: "0%",
+        },
+        {
+          name: "Haute",
+          value: priorityMap.haute.length,
+          color: PRIORITY_COLORS.haute,
+          percentage: "0%",
+        },
+        {
+          name: "Urgente",
+          value: priorityMap.urgente.length,
+          color: PRIORITY_COLORS.urgente,
+          percentage: "0%",
+        },
+      ].filter((item) => item.value > 0);
+
+      // Calculer les pourcentages
+      const totalTasks = chartData.reduce((sum, item) => sum + item.value, 0);
+      chartData.forEach((item) => {
+        item.percentage = `${Math.round((item.value / totalTasks) * 100)}%`;
+      });
+
+      setPieChartData(chartData);
+    }
+  }, [projectData]);
+
+  if (isLoading) {
+    return (
+      <Modal title="Chargement..." onClose={onClose}>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (!projectData) {
+    return (
+      <Modal title="Erreur" onClose={onClose}>
+        <div className="p-6 text-center">
+          <p className="text-red-500">
+            Impossible de charger les données du projet
+          </p>
+          <Button
+            onClick={onBack}
+            className="mt-4 bg-purple-600 text-white hover:bg-purple-700"
+          >
+            Retour à la liste des projets
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  const totalTasks = allTasks.length;
+
+  return (
+    <Modal
+      title={`Répartition des Tâches - ${projectData.name}`}
+      onClose={onClose}
+    >
+      <div
+        className="space-y-4 overflow-y-auto pr-2"
+        style={{
+          maxHeight: "70vh",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <Button
+              onClick={onBack}
+              variant="outline"
+              className="flex items-center gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <ChevronRightIcon className="h-4 w-4 rotate-180" />
+              Retour aux projets
+            </Button>
+
+            <div className="text-right">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Total des tâches:{" "}
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {totalTasks}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Graphique en camembert */}
+            <div className="rounded-lg bg-slate-50 p-6 dark:bg-slate-700/50">
+              <h3 className="mb-6 text-lg font-semibold text-slate-800 dark:text-white">
+                Répartition par priorité
+              </h3>
+
+              {pieChartData.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, percentage }) =>
+                          `${name}: ${percentage}`
+                        }
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-64 items-center justify-center">
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Aucune donnée disponible
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-4">
+                {pieChartData.map((item) => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    ></div>
+                    <span className="text-sm capitalize text-slate-700 dark:text-slate-300">
+                      {item.name} ({item.value})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Détails par priorité */}
+            <div className="rounded-lg bg-slate-50 p-6 dark:bg-slate-700/50">
+              <h3 className="mb-6 text-lg font-semibold text-slate-800 dark:text-white">
+                Détails par priorité
+              </h3>
+
+              <div className="hide-scrollbar max-h-[300px] space-y-6 overflow-y-auto pr-2">
+                {Object.entries(tasksByPriority)
+                  .filter(([_, tasks]) => tasks.length > 0)
+                  .map(([priority, tasks]) => (
+                    <div key={priority} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-3 w-3 rounded-full"
+                          style={{
+                            backgroundColor:
+                              PRIORITY_COLORS[
+                                priority as keyof typeof PRIORITY_COLORS
+                              ],
+                          }}
+                        ></div>
+                        <h4 className="font-medium capitalize text-slate-800 dark:text-white">
+                          {priority}
+                        </h4>
+                        <Badge className="ml-2 bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-200">
+                          {tasks.length} tâches
+                        </Badge>
+                      </div>
+
+                      <div className="ml-5 space-y-2">
+                        {tasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="text-sm text-slate-600 dark:text-slate-300"
+                          >
+                            • {task.title}{" "}
+                            {task.assignedTo !== "Non assigné" &&
+                              `(${task.assignedTo})`}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Liste complète des tâches */}
+        <div className="rounded-lg bg-slate-50 p-6 dark:bg-slate-700/50">
+          <h3 className="mb-6 text-lg font-semibold text-slate-800 dark:text-white">
+            Liste des tâches
+          </h3>
+
+          <div className="hide-scrollbar max-h-[300px] space-y-4 overflow-y-auto pr-2">
+            {allTasks.length > 0 ? (
+              allTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="rounded-lg border border-slate-200 p-4 dark:border-slate-600"
+                >
+                  <div className="flex items-start gap-2">
+                    <div
+                      className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: PRIORITY_COLORS[task.priority],
+                      }}
+                    ></div>
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-800 dark:text-white">
+                        {task.title}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-500 dark:text-slate-400">
+                        <div>
+                          Priorité:{" "}
+                          <span className="capitalize">{task.priority}</span>
+                        </div>
+                        <div>Assigné à: {task.assignedTo}</div>
+                        <div>
+                          Statut:{" "}
+                          <span className="capitalize">
+                            {task.status || "À_faire"}
+                          </span>
+                        </div>
+                        <div>Deadline: {task.deadline}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-slate-500 dark:text-slate-400">
+                Aucune tâche trouvée
+              </p>
+            )}
+          </div>
+        </div>
+
+        <Button
+          onClick={onClose}
+          className="bg-purple-600 text-white hover:bg-purple-700"
+        >
+          Fermer
+        </Button>
+      </div>
+    </Modal>
+  );
+};
+
 // Modifier le composant principal pour gérer les clics sur les innovations
 export default function GlobalDashboard() {
-  const [isMounted, setIsMounted] = useState<boolean>(false);
   const [selectedModal, setSelectedModal] = useState<ModalType>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -1252,15 +1326,10 @@ export default function GlobalDashboard() {
     [],
   );
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [selectedInnovation, setSelectedInnovation] = useState<string | null>(
+  const [monthlyStats, setMonthlyStats] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
   );
-  const [calendarEvents, setCalendarEvents] =
-    useState<CalendarEvent[]>(exampleEvents);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [pendingProjects, setPendingProjects] = useState<PendingProject[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // État pour le système de notification
   const [notification, setNotification] = useState<NotificationState>({
@@ -1269,19 +1338,6 @@ export default function GlobalDashboard() {
     message: "",
     type: "success",
   });
-
-  // Référence pour le champ de date dans le formulaire
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const [newEvent, setNewEvent] = useState<Omit<CalendarEvent, "id">>({
-    date: format(new Date(), "yyyy-MM-dd"),
-    title: "",
-    notes: "",
-    time: format(new Date(), "HH:mm"),
-    invitees: [],
-  });
-  const [selectedInvitees, setSelectedInvitees] = useState<string[]>([]);
-  const [iaDescription, setIaDescription] = useState<string>("");
 
   // Get the current user ID from localStorage
   const [clerkUserId, setClerkUserId] = useState<string | null>(null);
@@ -1300,26 +1356,26 @@ export default function GlobalDashboard() {
     error: dashboardError,
   } = useGetDashboardDataQuery(undefined, { skip: !clerkUserId });
 
-  // Fetch pending projects
-  useEffect(() => {
-    const fetchPendingProjects = async () => {
-      try {
-        const response = await fetch(
-          "http://localhost:8000/api/admin/projects/pending",
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setPendingProjects(data.pendingProjects || []);
-        } else {
-          console.error("Failed to fetch pending projects");
-        }
-      } catch (error) {
-        console.error("Error fetching pending projects:", error);
-      }
-    };
+  // Fetch recent activities
+  const {
+    data: activitiesData,
+    isLoading: isLoadingActivities,
+    error: activitiesError,
+  } = useGetRecentActivitiesQuery();
 
-    fetchPendingProjects();
-  }, []);
+  // Fetch monthly stats
+  const { data: monthlyStatsData, isLoading: isLoadingMonthlyStats } =
+    useGetProjectStatsByMonthQuery();
+
+  // Fetch pending projects using RTK Query
+  const { data: pendingProjectsData, isLoading: isLoadingPendingProjects } =
+    useGetPendingProjectsQuery();
+
+  // Mutations for approving and rejecting projects
+  const [approveProject, { isLoading: isApprovingProject }] =
+    useApproveProjectMutation();
+  const [rejectProject, { isLoading: isRejectingProject }] =
+    useRejectProjectMutation();
 
   // Afficher une notification
   const showNotification = (
@@ -1340,93 +1396,41 @@ export default function GlobalDashboard() {
     setNotification((prev) => ({ ...prev, show: false }));
   };
 
-  // Handle project approval
+  // Handle project approval using RTK Query
   const handleApproveProject = async (projectId: number) => {
-    setIsLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/admin/projects/${projectId}/approve`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
+      await approveProject(projectId).unwrap();
+      showNotification(
+        "Projet approuvé",
+        "Le projet a été approuvé avec succès.",
+        "success",
       );
-
-      if (response.ok) {
-        // Remove the approved project from the list
-        setPendingProjects((prev) =>
-          prev.filter((project) => project.id !== projectId),
-        );
-        // Show success notification
-        showNotification(
-          "Projet approuvé",
-          "Le projet a été approuvé avec succès.",
-          "success",
-        );
-      } else {
-        console.error("Failed to approve project");
-        showNotification(
-          "Échec de l'approbation",
-          "Le projet n'a pas pu être approuvé. Veuillez réessayer.",
-          "error",
-        );
-      }
     } catch (error) {
       console.error("Error approving project:", error);
       showNotification(
-        "Erreur",
-        "Une erreur s'est produite lors de l'approbation du projet.",
+        "Échec de l'approbation",
+        "Le projet n'a pas pu être approuvé. Veuillez réessayer.",
         "error",
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Mettre à jour le message d'alerte dans handleRejectProject pour refléter la suppression
+  // Handle project rejection using RTK Query
   const handleRejectProject = async (projectId: number) => {
-    setIsLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/admin/projects/${projectId}/reject`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
+      await rejectProject(projectId).unwrap();
+      showNotification(
+        "Projet rejeté",
+        "Le projet a été rejeté et supprimé de la base de données.",
+        "warning",
       );
-
-      if (response.ok) {
-        // Remove the rejected project from the list
-        setPendingProjects((prev) =>
-          prev.filter((project) => project.id !== projectId),
-        );
-        // Show success notification
-        showNotification(
-          "Projet rejeté",
-          "Le projet a été rejeté et supprimé de la base de données.",
-          "warning",
-        );
-      } else {
-        console.error("Failed to reject project");
-        showNotification(
-          "Échec du rejet",
-          "Le projet n'a pas pu être rejeté. Veuillez réessayer.",
-          "error",
-        );
-      }
     } catch (error) {
       console.error("Error rejecting project:", error);
       showNotification(
-        "Erreur",
-        "Une erreur s'est produite lors du rejet du projet.",
+        "Échec du rejet",
+        "Le projet n'a pas pu être rejeté. Veuillez réessayer.",
         "error",
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -1519,11 +1523,13 @@ export default function GlobalDashboard() {
           deadline: task.due_date
             ? format(new Date(task.due_date), "dd/MM/yy")
             : "N/A",
-          priority: "medium",
+          priority: task.priority || "moyenne",
           description: task.description || "",
           due_date: task.due_date || "",
           assignee_id: task.assignee_id,
           project_name: task.project_name,
+          project_id: task.project_id,
+          status: "terminé",
         }),
       );
 
@@ -1543,11 +1549,13 @@ export default function GlobalDashboard() {
             deadline: task.due_date
               ? format(new Date(task.due_date), "dd/MM/yy")
               : "N/A",
-            priority: "medium",
+            priority: task.priority || "moyenne",
             description: task.description || "",
             due_date: task.due_date || "",
             assignee_id: task.assignee_id,
             project_name: task.project_name,
+            project_id: task.project_id,
+            status: task.status,
           };
         },
       );
@@ -1584,6 +1592,25 @@ export default function GlobalDashboard() {
     }
   }, [dashboardData]);
 
+  // Mettre à jour les statistiques mensuelles lorsque les données sont chargées
+  useEffect(() => {
+    if (monthlyStatsData?.monthlyStats) {
+      setMonthlyStats(monthlyStatsData.monthlyStats);
+    }
+  }, [monthlyStatsData]);
+
+  // Gérer la sélection d'un projet pour voir sa répartition des tâches
+  const handleProjectSelect = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setSelectedModal("projet_repartition_taches");
+  };
+
+  // Gérer le retour à la liste des projets
+  const handleBackToProjects = () => {
+    setSelectedProjectId(null);
+    setSelectedModal("repartition_taches");
+  };
+
   return (
     <>
       <GlobalStyle />
@@ -1617,57 +1644,51 @@ export default function GlobalDashboard() {
             </motion.div>
           </header>
         )}
-
         {/* Section des projets en attente d'approbation */}
-        {pendingProjects.length > 0 && (
-          <div className="mb-8">
-            <PendingProjectsSection
-              pendingProjects={pendingProjects}
-              onApprove={handleApproveProject}
-              onReject={handleRejectProject}
-            />
-          </div>
-        )}
-
+        {pendingProjectsData?.pendingProjects &&
+          pendingProjectsData.pendingProjects.length > 0 && (
+            <div className="mb-8">
+              <PendingProjectsSection
+                pendingProjects={pendingProjectsData.pendingProjects}
+                onApprove={handleApproveProject}
+                onReject={handleRejectProject}
+                isLoading={isApprovingProject || isRejectingProject}
+              />
+            </div>
+          )}
         {/* Première rangée de statistiques */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-5">
           <StatBlock
             title="Projets Actifs"
             value={activeProjects.length.toString()}
-            change="+5%"
             icon={<BriefcaseIcon />}
             onClick={() => setSelectedModal("projets_actifs")}
           />
           <StatBlock
             title="Tâches Complétées"
             value={completedTasks.length.toString()}
-            change="+18%"
             icon={<ClipboardDocumentCheckIcon />}
             onClick={() => setSelectedModal("taches_completees")}
           />
           <StatBlock
             title="Projets"
             value={allProjects.length.toString()}
-            change="+2"
             icon={<UsersIcon />}
             onClick={() => setSelectedModal("projets_section")}
           />
           <StatBlock
             title="Tâches en cours"
             value={ongoingTasks.length.toString()}
-            change="+3"
             icon={<DocumentTextIcon />}
             onClick={() => setSelectedModal("taches_en_cours")}
           />
           <StatBlock
             title="Projets terminés"
             value={completedProjects.length.toString()}
-            change="+4"
             icon={<CheckCircleIcon />}
             onClick={() => setSelectedModal("projets_termines")}
           />
         </div>
-
         {/* Widgets */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
@@ -1678,48 +1699,69 @@ export default function GlobalDashboard() {
             >
               <h2 className="mb-6 flex items-center gap-3 text-xl font-semibold text-slate-800 dark:text-white">
                 <PresentationChartLineIcon className="h-7 w-7 text-purple-600" />
-                Progression globale
+                Progression par mois
               </h2>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="stroke-slate-200 dark:stroke-slate-700"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      stroke={colors.text}
-                      className="text-xs dark:stroke-slate-400"
-                    />
-                    <YAxis
-                      stroke={colors.text}
-                      className="text-xs dark:stroke-slate-400"
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "rgba(255, 255, 255, 0.9)",
-                        border: `1px solid ${colors.primary}20`,
-                        borderRadius: "12px",
-                        boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
-                        color: "#1E293B",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke={colors.primary}
-                      strokeWidth={3}
-                      dot={{ fill: colors.primary, strokeWidth: 2, r: 4 }}
-                      activeDot={{
-                        r: 8,
-                        fill: colors.primary,
-                        stroke: "white",
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {isLoadingMonthlyStats ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={monthlyStats}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-slate-200 dark:stroke-slate-700"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        stroke={colors.text}
+                        className="text-xs dark:stroke-slate-400"
+                      />
+                      <YAxis
+                        stroke={colors.text}
+                        className="text-xs dark:stroke-slate-400"
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "rgba(255, 255, 255, 0.9)",
+                          border: `1px solid ${colors.primary}20`,
+                          borderRadius: "12px",
+                          boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
+                          color: "#1E293B",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="nouveaux"
+                        name="Nouveaux projets"
+                        stroke={colors.primary}
+                        strokeWidth={3}
+                        dot={{ fill: colors.primary, strokeWidth: 2, r: 4 }}
+                        activeDot={{
+                          r: 8,
+                          fill: colors.primary,
+                          stroke: "white",
+                          strokeWidth: 2,
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="terminés"
+                        name="Projets terminés"
+                        stroke={colors.secondary}
+                        strokeWidth={3}
+                        dot={{ fill: colors.secondary, strokeWidth: 2, r: 4 }}
+                        activeDot={{
+                          r: 8,
+                          fill: colors.secondary,
+                          stroke: "white",
+                          strokeWidth: 2,
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </motion.div>
 
@@ -1727,6 +1769,65 @@ export default function GlobalDashboard() {
               <RecentActivity
                 onClick={() => setSelectedModal("activite_recente")}
               />
+              <motion.div
+                onClick={() => setSelectedModal("repartition_taches")}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex h-full cursor-pointer flex-col rounded-2xl border border-slate-100 bg-white/80 p-6 shadow-lg backdrop-blur-sm transition-all hover:border-purple-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-purple-400"
+              >
+                <h3 className="mb-4 flex items-center gap-3 text-xl font-semibold text-slate-800 dark:text-white">
+                  <DocumentTextIcon className="h-7 w-7 text-purple-600" />
+                  Répartition des Tâches
+                </h3>
+                <div
+                  className="space-y-4 overflow-y-auto pr-2"
+                  style={{
+                    maxHeight: "300px",
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                  }}
+                >
+                  <style jsx>{`
+                    div::-webkit-scrollbar {
+                      display: none;
+                    }
+                  `}</style>
+                  {teamGroups.length > 0 ? (
+                    teamGroups.map((group, index) => (
+                      <motion.div
+                        key={group.projectName}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="cursor-pointer rounded-lg border-l-4 p-4 transition-colors hover:bg-purple-50/50 dark:hover:bg-slate-700/50"
+                        style={{ borderColor: group.projectColor }}
+                        whileHover={{ x: 5 }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-slate-800 dark:text-white">
+                              {group.projectName}
+                            </h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-300">
+                              {group.members.length} membres
+                            </p>
+                          </div>
+                          <div
+                            className="flex h-10 w-10 items-center justify-center rounded-full font-medium text-white"
+                            style={{ background: group.projectColor }}
+                          >
+                            {group.members.length}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <p className="text-center text-slate-500 dark:text-slate-400">
+                      Aucune équipe trouvée
+                    </p>
+                  )}
+                </div>
+              </motion.div>
             </div>
           </div>
 
@@ -1753,17 +1854,27 @@ export default function GlobalDashboard() {
                 }}
               />
             </div>
-            <div></div>
           </div>
         </div>
-
         {/* Modales */}
         {selectedModal === "projets_actifs" && (
           <Modal
             title="Détails des Projets Actifs"
             onClose={() => setSelectedModal(null)}
           >
-            <div className="space-y-4">
+            <div
+              className="space-y-4 overflow-y-auto pr-2"
+              style={{
+                maxHeight: "70vh",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
               {activeProjects.length > 0 ? (
                 activeProjects.map((project) => (
                   <div
@@ -1801,13 +1912,24 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "taches_completees" && (
           <Modal
             title="Tâches Complétées"
             onClose={() => setSelectedModal(null)}
           >
-            <div className="space-y-4">
+            <div
+              className="space-y-4 overflow-y-auto pr-2"
+              style={{
+                maxHeight: "70vh",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
               {completedTasks.length > 0 ? (
                 completedTasks.map((task) => (
                   <div
@@ -1857,7 +1979,6 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "tache_details" && selectedTask && (
           <TaskDetails
             task={selectedTask}
@@ -1867,10 +1988,21 @@ export default function GlobalDashboard() {
             }}
           />
         )}
-
         {selectedModal === "taches_en_cours" && (
           <Modal title="Tâches en cours" onClose={() => setSelectedModal(null)}>
-            <div className="space-y-4">
+            <div
+              className="space-y-4 overflow-y-auto pr-2"
+              style={{
+                maxHeight: "70vh",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
               {ongoingTasks.length > 0 ? (
                 ongoingTasks.map((task) => (
                   <div
@@ -1921,7 +2053,6 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "projets_termines" && (
           <Modal
             title="Projets terminés"
@@ -1964,7 +2095,6 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "projets_prioritaires" && (
           <Modal
             title="Projets Prioritaires"
@@ -2009,36 +2139,48 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "activite_recente" && (
           <Modal
             title="Activité Récente"
             onClose={() => setSelectedModal(null)}
           >
             <div className="custom-scrollbar max-h-[70vh] space-y-4 overflow-y-auto pr-2">
-              {recentActivities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50"
-                >
-                  <div className="mt-2 h-2 w-2 rounded-full bg-purple-600" />
-                  <div>
-                    <p className="text-sm text-slate-800 dark:text-white">
-                      <span className="font-medium text-purple-600 dark:text-purple-400">
-                        {activity.user}
-                      </span>{" "}
-                      {activity.action}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      {activity.time}
-                    </p>
-                  </div>
+              {isLoadingActivities ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-200 border-t-purple-600"></div>
                 </div>
-              ))}
+              ) : activitiesError ? (
+                <div className="py-8 text-center text-red-500">
+                  Erreur lors du chargement des activités récentes
+                </div>
+              ) : activitiesData?.activities?.length > 0 ? (
+                activitiesData.activities.map((activity: any) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-4 rounded-lg bg-slate-50 p-4 dark:bg-slate-700/50"
+                  >
+                    <div className="mt-2 h-2 w-2 rounded-full bg-purple-600" />
+                    <div>
+                      <p className="text-sm text-slate-800 dark:text-white">
+                        <span className="font-medium text-purple-600 dark:text-purple-400">
+                          {activity.user}
+                        </span>{" "}
+                        {activity.action}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-8 text-center text-slate-500 dark:text-slate-400">
+                  Aucune activité récente
+                </p>
+              )}
             </div>
           </Modal>
         )}
-
         {selectedModal === "projets_section" && (
           <Modal
             title="Tous les Projets"
@@ -2054,7 +2196,6 @@ export default function GlobalDashboard() {
             />
           </Modal>
         )}
-
         {selectedModal === "projet_details" && selectedProject && (
           <Modal
             title={selectedProject.name}
@@ -2115,7 +2256,6 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
         {selectedModal === "equipes" && (
           <Modal
             title="Équipes par Projet"
@@ -2131,7 +2271,6 @@ export default function GlobalDashboard() {
             />
           </Modal>
         )}
-
         {selectedModal === "equipe_details" && selectedTeamProject && (
           <TeamDetails
             projectName={selectedTeamProject}
@@ -2147,7 +2286,6 @@ export default function GlobalDashboard() {
             }}
           />
         )}
-
         {selectedModal === "member_details" && selectedMember && (
           <MemberDetails
             member={selectedMember}
@@ -2161,15 +2299,15 @@ export default function GlobalDashboard() {
             }}
           />
         )}
-
         {selectedModal === "projets_en_attente" && (
           <Modal
             title="Projets en attente d'approbation"
             onClose={() => setSelectedModal(null)}
           >
             <div className="space-y-4">
-              {pendingProjects.length > 0 ? (
-                pendingProjects.map((project) => (
+              {pendingProjectsData?.pendingProjects &&
+              pendingProjectsData.pendingProjects.length > 0 ? (
+                pendingProjectsData.pendingProjects.map((project) => (
                   <div
                     key={project.id}
                     className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
@@ -2202,7 +2340,7 @@ export default function GlobalDashboard() {
                         variant="outline"
                         className="border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                         onClick={() => handleRejectProject(project.id)}
-                        disabled={isLoading}
+                        disabled={isApprovingProject || isRejectingProject}
                       >
                         <XMarkIcon className="mr-1 h-4 w-4" />
                         Rejeter
@@ -2210,7 +2348,7 @@ export default function GlobalDashboard() {
                       <Button
                         className="bg-green-600 text-white hover:bg-green-700"
                         onClick={() => handleApproveProject(project.id)}
-                        disabled={isLoading}
+                        disabled={isApprovingProject || isRejectingProject}
                       >
                         <CheckIcon className="mr-1 h-4 w-4" />
                         Approuver
@@ -2226,7 +2364,20 @@ export default function GlobalDashboard() {
             </div>
           </Modal>
         )}
-
+        {selectedModal === "repartition_taches" && (
+          <ProjectsTaskDistribution
+            projects={allProjects}
+            onProjectSelect={handleProjectSelect}
+            onClose={() => setSelectedModal(null)}
+          />
+        )}
+        {selectedModal === "projet_repartition_taches" && selectedProjectId && (
+          <ProjectTaskDistributionDetails
+            projectId={selectedProjectId}
+            onBack={handleBackToProjects}
+            onClose={() => setSelectedModal(null)}
+          />
+        )}
         {/* Notification Modal */}
         {notification.show && (
           <ConfirmationModal

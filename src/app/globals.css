@@ -58,3 +58,14 @@ html {
 .str-video__notification {
   color: white;
 }
+
+/* Meeting page styles */
+.meeting-container {
+  position: relative;
+  z-index: 10;
+}
+
+/* Hide duplicate UI elements in meeting pages */
+.meeting-container .duplicate-ui-element {
+  display: none;
+}

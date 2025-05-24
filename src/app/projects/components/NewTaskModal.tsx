@@ -53,12 +53,12 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [aiDescription, setAIDescription] = useState("");
   const [aiLoading, setAILoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false); // État pour suivre si le formulaire a déjà été soumis
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<Omit<Attachment, "id">[]>([]);
   const [selectedPermission, setSelectedPermission] = useState<
     "read" | "edit" | "manage"
   >("read");
-  // Ajouter un état pour les erreurs de validation après la déclaration des autres états
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -104,16 +104,25 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     return null;
   }
 
-  // Générer une tâche avec l'IA (OpenAI)
+  // Générer une tâche avec l'IA
   const handleAISubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!aiDescription.trim()) return;
 
+    // Vérifier si le formulaire a déjà été soumis
+    if (isSubmitted || aiLoading || !aiDescription.trim()) {
+      return;
+    }
+
+    // Marquer le formulaire comme soumis immédiatement pour empêcher les soumissions multiples
+    setIsSubmitted(true);
     setAILoading(true);
+
     try {
-      // Vérifier que la description a au moins 10 caractères (exigence du validateur backend)
+      // Vérifier que la description a au moins 10 caractères
       if (aiDescription.trim().length < 10) {
         toast.error("La description doit contenir au moins 10 caractères");
+        setIsSubmitted(false);
+        setAILoading(false);
         return;
       }
 
@@ -121,24 +130,34 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       const columnId = columns[0]?.id?.toString() || "";
       if (!columnId) {
         toast.error("Aucune colonne disponible pour ajouter la tâche");
+        setIsSubmitted(false);
+        setAILoading(false);
         return;
       }
+
+      // Créer un identifiant unique pour cette requête
+      const requestId = Date.now().toString();
 
       // Appel à l'API pour générer une tâche avec IA
       const result = await generateTaskWithAI({
         description: aiDescription,
         column_id: columnId,
         creator_id: currentUserId || "",
+        assignee_id: currentTeamMemberId,
+        request_id: requestId, // Ajouter un identifiant unique pour cette requête
       }).unwrap();
 
       toast.success("Tâche générée avec succès!");
-      onClose();
+
+      // Fermer le modal après un court délai pour éviter les problèmes d'interface
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (error: any) {
       console.error("Erreur lors de la génération de la tâche:", error);
 
       // Afficher un message d'erreur plus détaillé
       if (error.data && error.data.errors) {
-        // Afficher les erreurs de validation spécifiques
         const validationErrors = Object.values(error.data.errors).flat();
         validationErrors.forEach((err: any) => toast.error(err));
       } else if (error.data && error.data.message) {
@@ -148,6 +167,9 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
           "Une erreur est survenue lors de la génération de la tâche",
         );
       }
+
+      // Réinitialiser l'état de soumission en cas d'erreur
+      setIsSubmitted(false);
     } finally {
       setAILoading(false);
     }
@@ -156,6 +178,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   // Ajouter une tâche manuellement
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Vérifier si le formulaire a déjà été soumis
+    if (isSubmitted || isCreatingTask) {
+      return;
+    }
 
     // Valider tous les champs obligatoires
     const errors: Record<string, string> = {};
@@ -198,6 +225,9 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     // Réinitialiser les erreurs
     setValidationErrors({});
 
+    // Marquer le formulaire comme soumis
+    setIsSubmitted(true);
+
     try {
       // Pour les membres, s'assurer que la tâche est assignée à eux-mêmes
       const finalTaskData = {
@@ -207,16 +237,25 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
         // Si l'utilisateur est un membre, forcer l'assignation à lui-même
         assignee_id:
           userRole === "manager" ? taskForm.assignee_id : currentTeamMemberId,
+        // Ajouter un identifiant unique pour cette requête
+        request_id: Date.now().toString(),
       };
 
       // Créer la tâche via l'API
       await createTask(finalTaskData).unwrap();
 
       toast.success("Nouvelle tâche créée avec succès!");
-      onClose();
+
+      // Fermer le modal après un court délai
+      setTimeout(() => {
+        onClose();
+      }, 500);
     } catch (error) {
       console.error("Erreur lors de la création de la tâche:", error);
       toast.error("Erreur lors de la création de la tâche");
+
+      // Réinitialiser l'état de soumission en cas d'erreur
+      setIsSubmitted(false);
     }
   };
 
@@ -316,6 +355,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             onClick={onClose}
             className="rounded-full p-2 text-violet-600 hover:bg-violet-100"
             title="Fermer"
+            disabled={isSubmitted || aiLoading || isCreatingTask}
           >
             <X size={18} />
           </button>
@@ -339,6 +379,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   rows={4}
                   placeholder="Par exemple: Créer une page de contact responsive avec un formulaire et une carte interactive."
                   required
+                  disabled={isSubmitted || aiLoading}
                 />
               </div>
 
@@ -355,18 +396,43 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 </p>
               </div>
 
+              {/* Afficher l'assignation automatique pour le mode IA */}
+              <div className="mb-4 rounded-md border border-violet-200 bg-violet-50 p-3">
+                <div className="flex items-center">
+                  <Avatar className="mr-2 h-6 w-6">
+                    <AvatarImage
+                      src={
+                        teamMembers.find((m) => m.id === currentTeamMemberId)
+                          ?.avatar ||
+                        "/placeholder-user.jpg" ||
+                        "/placeholder.svg" ||
+                        "/placeholder.svg"
+                      }
+                    />
+                    <AvatarFallback>
+                      {assignedMemberName.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm text-violet-700">
+                    Cette tâche sera automatiquement assignée à{" "}
+                    <strong>{assignedMemberName}</strong>
+                  </span>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={onClose}
                   className="mr-2 rounded-md bg-gray-100 px-4 py-2 text-gray-700"
+                  disabled={isSubmitted || aiLoading}
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600"
-                  disabled={aiLoading || !aiDescription.trim()}
+                  className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600 disabled:bg-violet-300"
+                  disabled={aiLoading || !aiDescription.trim() || isSubmitted}
                 >
                   {aiLoading ? (
                     <>
@@ -384,6 +450,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
             </form>
           ) : (
             <form onSubmit={handleManualSubmit}>
+              {/* Contenu du formulaire manuel (inchangé) */}
               <div className="mb-4">
                 <label
                   htmlFor="title"
@@ -403,6 +470,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   onChange={(e) => updateTaskForm("title", e.target.value)}
                   className={`w-full rounded-md border p-2 ${validationErrors.title ? "border-red-500" : ""}`}
                   required
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -424,6 +492,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   onChange={(e) => updateTaskForm("column_id", e.target.value)}
                   className={`w-full rounded-md border p-2 ${validationErrors.column_id ? "border-red-500" : ""}`}
                   required
+                  disabled={isSubmitted}
                 >
                   {columns.map((column) => (
                     <option key={column.id} value={column.id}>
@@ -454,6 +523,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   className={`w-full rounded-md border p-2 ${validationErrors.description ? "border-red-500" : ""}`}
                   rows={3}
                   required
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -473,10 +543,10 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                       </p>
                     )}
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild disabled={isSubmitted}>
                         <button
                           type="button"
-                          className={`flex w-full items-center justify-between rounded-md border bg-white p-2 text-left ${validationErrors.assignee_id ? "border-red-500" : ""}`}
+                          className={`flex w-full items-center justify-between rounded-md border bg-white p-2 text-left ${validationErrors.assignee_id ? "border-red-500" : ""} ${isSubmitted ? "opacity-70" : ""}`}
                         >
                           {taskForm.assignee_id ? (
                             <div className="flex items-center">
@@ -487,7 +557,6 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                       (m) => m.id === taskForm.assignee_id,
                                     )?.avatar ||
                                     "/placeholder-user.jpg" ||
-                                    "/placeholder.svg" ||
                                     "/placeholder.svg"
                                   }
                                 />
@@ -587,6 +656,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                     onChange={(e) => updateTaskForm("priority", e.target.value)}
                     className={`w-full rounded-md border p-2 ${validationErrors.priority ? "border-red-500" : ""}`}
                     required
+                    disabled={isSubmitted}
                   >
                     <option value="basse">Basse</option>
                     <option value="moyenne">Moyenne</option>
@@ -614,6 +684,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                             ? "bg-violet-500 text-white"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
+                        disabled={isSubmitted}
                       >
                         {preset.label}
                       </button>
@@ -633,6 +704,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                       }
                       className="w-full rounded-md border p-2"
                       min="0"
+                      disabled={isSubmitted}
                     />
                     <span className="ml-2 text-sm text-gray-500">minutes</span>
                   </div>
@@ -659,6 +731,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   onChange={(e) => updateTaskForm("due_date", e.target.value)}
                   className={`w-full rounded-md border p-2 ${validationErrors.due_date ? "border-red-500" : ""}`}
                   required
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -675,6 +748,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center text-sm text-violet-600 hover:text-violet-700"
+                    disabled={isSubmitted}
                   >
                     <Upload size={16} className="mr-1" />
                     Ajouter un fichier
@@ -686,6 +760,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                     onChange={handleFileUpload}
                     className="hidden"
                     multiple
+                    disabled={isSubmitted}
                   />
                 </div>
 
@@ -712,6 +787,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                           type="button"
                           onClick={() => removeAttachment(index)}
                           className="text-red-500 hover:text-red-700"
+                          disabled={isSubmitted}
                         >
                           <X size={16} />
                         </button>
@@ -750,6 +826,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   className={`w-full rounded-md border p-2 ${validationErrors.tags ? "border-red-500" : ""}`}
                   placeholder="design, urgent, documentation"
                   required
+                  disabled={isSubmitted}
                 />
               </div>
 
@@ -758,16 +835,17 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   type="button"
                   onClick={onClose}
                   className="rounded-md bg-gray-100 px-4 py-2 text-gray-700"
+                  disabled={isSubmitted}
                 >
                   Annuler
                 </button>
 
                 {userRole === "manager" && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild disabled={isSubmitted}>
                       <button
                         type="button"
-                        className="flex items-center rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                        className={`flex items-center rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 ${isSubmitted ? "opacity-70" : ""}`}
                       >
                         <Share2 size={16} className="mr-2" />
                         {selectedPermission === "read" && "Partager (Lecture)"}
@@ -811,8 +889,10 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
 
                 <button
                   type="submit"
-                  className="rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600"
-                  disabled={!taskForm.title.trim() || isCreatingTask}
+                  className="rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600 disabled:bg-violet-300"
+                  disabled={
+                    !taskForm.title.trim() || isCreatingTask || isSubmitted
+                  }
                 >
                   {isCreatingTask ? (
                     <span className="flex items-center">

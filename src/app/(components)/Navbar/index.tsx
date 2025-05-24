@@ -1,7 +1,7 @@
 "use client";
-import { ThemeToggleButton } from "@/app/admin/components/common/ThemeToggleButton";
-import NotificationDropdown from "@/app/admin/components/header/NotificationDropdown";
-import UserDropdown from "@/app/admin/components/header/UserDropdown";
+import { ThemeToggleButton } from "../ThemeToggleButton";
+import NotificationDropdown from "../NotificationDropdown";
+import UserDropdown from "../UserDropdown";
 import { useSidebar } from "@/app/admin/context/SidebarContext";
 import Image from "next/image";
 import Link from "next/link";
@@ -86,14 +86,14 @@ const AppHeader: React.FC = () => {
               width={154}
               height={32}
               className="dark:hidden"
-              src="/images/logo/maison.png"
+              src="/img/logo/logo.png"
               alt="Logo"
             />
             <Image
               width={154}
               height={32}
               className="hidden dark:block"
-              src="/images/logo/maison.png"
+              src="/img/logo/logo.png"
               alt="Logo"
             />
           </Link>

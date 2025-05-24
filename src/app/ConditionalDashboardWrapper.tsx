@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import DashboardWrapper from "./dashboardWrapper";
 
@@ -33,16 +34,21 @@ const ConditionalDashboardWrapper: React.FC<
     "/admin/apk/sauvgarde",
     "/admin/apk/historique",
     "/admin/apk/analyseretard",
-    "/admin/apk/Export",
+    "/admin/apk/Reports",
     "/admin/apk/logs",
     "/admin/apk/cycle",
   ];
   const isadminPage = adminPages.includes(pathname);
 
+  // Check if the current page is a meeting page
+  const isMeetingPage = pathname.startsWith("/meeting");
+
   if (isLandingPage || isadminPage) {
     return <>{children}</>;
   }
 
+  // For meeting pages, we still want the dashboard wrapper, but we need to handle
+  // the content differently in the meeting components
   return <DashboardWrapper>{children}</DashboardWrapper>;
 };
 

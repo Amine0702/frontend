@@ -145,6 +145,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     }
 
     // Appeler la fonction de déplacement
+    // Le backend mettra automatiquement à jour le statut de la tâche en fonction du titre de la colonne
     onTaskMove(taskId, sourceColId, column.id);
   };
 

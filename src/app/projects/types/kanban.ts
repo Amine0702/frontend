@@ -25,7 +25,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: "à_faire" | "en_cours" | "en_révision" | "terminé";
+  status: string; // Utiliser string pour accepter n'importe quel nom de colonne comme statut
   priority: "basse" | "moyenne" | "haute" | "urgente";
   assigneeId?: string;
   creatorId?: string; // Ajout de la propriété creatorId
@@ -102,7 +102,7 @@ export interface BackendTask {
   column_id: number;
   title: string;
   description: string;
-  status: "à_faire" | "en_cours" | "en_révision" | "terminé";
+  status: string; // Modifié pour accepter n'importe quelle chaîne
   priority: "basse" | "moyenne" | "haute" | "urgente";
   assignee_id: number | null;
   creator_id: string | null; // Ajout de la propriété creator_id

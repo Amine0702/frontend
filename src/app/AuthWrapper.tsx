@@ -45,6 +45,9 @@ export default function AuthWrapper({
           console.log("Réponse de l'API Laravel :", response);
           setIsUserCreated(true);
 
+          // Stocker l'ID utilisateur Clerk dans le localStorage pour l'utiliser dans d'autres composants
+          localStorage.setItem("clerkUserId", user.id);
+
           // Stockage du rôle global renvoyé par l'API (admin ou non)
           if (response?.user?.role) {
             setUserRole(response.user.role);

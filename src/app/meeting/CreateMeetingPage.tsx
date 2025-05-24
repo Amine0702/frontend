@@ -53,7 +53,7 @@ export default function CreateMeetingPage() {
       setCall(call);
     } catch (error) {
       console.error(error);
-      alert("Something went wrong. Please try again later.");
+      alert("Une erreur s'est produite. Veuillez réessayer plus tard.");
     }
   }
 
@@ -64,12 +64,12 @@ export default function CreateMeetingPage() {
   return (
     <div className="bg-black-200 flex min-h-screen flex-col items-center space-y-8 py-12">
       <h1 className="text-3xl font-semibold text-black dark:text-white">
-        Welcome {user.username}!
+        Bienvenue {user.username}!
       </h1>
 
       <div className="w-full max-w-md space-y-6 rounded-lg bg-gray-100 p-8 shadow-lg">
         <h2 className="text-2xl font-bold text-gray-900">
-          Create a new meeting
+          Créer une nouvelle réunion
         </h2>
         <DescriptionInput
           value={descriptionInput}
@@ -82,9 +82,9 @@ export default function CreateMeetingPage() {
         />
         <Button
           onClick={createMeeting}
-          className="w-full rounded-md bg-blue-600 py-2 text-white hover:bg-blue-700"
+          className="w-full rounded-md bg-gradient-to-r from-purple-500 to-indigo-500 py-2 text-white hover:bg-blue-700"
         >
-          Create meeting
+          Créer la réunion
         </Button>
       </div>
       {call && <MeetingLink call={call} />}
@@ -102,7 +102,9 @@ function DescriptionInput({ value, onChange }: DescriptionInputProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-900">Meeting info:</div>
+      <div className="text-sm font-medium text-gray-900">
+        Informations sur la réunion :
+      </div>
       <div className="flex items-center">
         <input
           type="checkbox"
@@ -113,16 +115,18 @@ function DescriptionInput({ value, onChange }: DescriptionInputProps) {
             WebkitAppearance: "radio",
             MozAppearance: "radio",
             appearance: "radio",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">Include description</span>
+        <span className="ml-2 text-sm text-gray-900">
+          Inclure une description
+        </span>
       </div>
       {active && (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Enter meeting description..."
+          placeholder="Entrez la description de la réunion..."
           className="h-24 w-full rounded-md border border-gray-300 bg-gray-50 p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       )}
@@ -146,7 +150,9 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-900">Meeting start:</div>
+      <div className="text-sm font-medium text-gray-900">
+        Début de la réunion :
+      </div>
       <div className="flex items-center">
         <input
           type="radio"
@@ -161,10 +167,12 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
             WebkitAppearance: "radio",
             MozAppearance: "radio",
             appearance: "radio",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">Start immediately</span>
+        <span className="ml-2 text-sm text-gray-900">
+          Commencer immédiatement
+        </span>
       </div>
       <div className="flex items-center">
         <input
@@ -180,15 +188,17 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
             WebkitAppearance: "radio",
             MozAppearance: "radio",
             appearance: "radio",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">Schedule for later</span>
+        <span className="ml-2 text-sm text-gray-900">
+          Planifier pour plus tard
+        </span>
       </div>
       {active && (
         <div className="mt-2">
           <div className="mb-1 block text-sm font-medium text-gray-900">
-            Select start time:
+            Sélectionnez l'heure de début :
           </div>
           <input
             type="datetime-local"
@@ -228,11 +238,11 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
             WebkitAppearance: "radio",
             MozAppearance: "radio",
             appearance: "radio",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
         />
         <div className="ml-2 text-sm text-gray-900">
-          Open meeting (Anyone with the link can join)
+          Réunion ouverte (Toute personne avec le lien peut rejoindre)
         </div>
       </div>
       <div className="flex items-center">
@@ -246,21 +256,21 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
             WebkitAppearance: "radio",
             MozAppearance: "radio",
             appearance: "radio",
-            marginRight: "4px", // Réduction de l'espace entre la case et le texte
+            marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">Private meeting</span>
+        <span className="ml-2 text-sm text-gray-900">Réunion privée</span>
       </div>
       {active && (
         <div className="mt-2">
           <div className="mb-1 block text-sm font-medium text-gray-900">
-            Enter participants' emails:
+            Entrez les emails des participants :
           </div>
           <textarea
             className="h-20 w-full rounded-md border border-gray-300 bg-gray-50 p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Enter emails separated by commas"
+            placeholder="Entrez les emails séparés par des virgules"
           />
         </div>
       )}
@@ -279,7 +289,7 @@ function MeetingLink({ call }: MeetingLinkProps) {
     <div className="mt-4 flex flex-col items-center gap-4 text-center">
       <div className="flex items-center gap-3">
         <span className="text-gray-900">
-          Invitation link:{" "}
+          Lien d'invitation :{" "}
           <Link
             href={meetingLink}
             className="font-medium text-blue-600 hover:underline"
@@ -288,10 +298,10 @@ function MeetingLink({ call }: MeetingLinkProps) {
           </Link>
         </span>
         <button
-          title="Copy invitation link"
+          title="Copier le lien d'invitation"
           onClick={() => {
             navigator.clipboard.writeText(meetingLink);
-            alert("Copied to clipboard");
+            alert("Copié dans le presse-papiers");
           }}
           className="rounded-full p-2 transition-colors hover:bg-gray-200"
         >
@@ -308,7 +318,7 @@ function MeetingLink({ call }: MeetingLinkProps) {
         rel="noopener noreferrer"
         className="text-sm text-blue-600 hover:underline"
       >
-        Send invitation via email
+        Envoyer l'invitation par email
       </a>
     </div>
   );
@@ -320,21 +330,22 @@ function getMailToLink(
   description?: string,
 ) {
   const startDateFormatted = startsAt
-    ? startsAt.toLocaleString("en-US", {
+    ? startsAt.toLocaleString("fr-FR", {
         dateStyle: "full",
         timeStyle: "short",
       })
     : undefined;
 
   const subject =
-    "Join my meeting" + (startDateFormatted ? ` at ${startDateFormatted}` : "");
+    "Rejoignez ma réunion" +
+    (startDateFormatted ? ` le ${startDateFormatted}` : "");
 
   const body =
-    `Join my meeting at ${meetingLink}.` +
+    `Rejoignez ma réunion à ${meetingLink}.` +
     (startDateFormatted
-      ? `\n\nThe meeting starts at ${startDateFormatted}.`
+      ? `\n\nLa réunion commence le ${startDateFormatted}.`
       : "") +
-    (description ? `\n\nDescription: ${description}` : "");
+    (description ? `\n\nDescription : ${description}` : "");
 
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

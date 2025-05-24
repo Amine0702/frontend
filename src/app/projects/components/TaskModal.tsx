@@ -570,6 +570,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               </div>
 
+              {/* Ajouter cette note informative après les champs de priorité et d'assignation */}
+              <div className="col-span-2 mt-2">
+                <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <p>
+                    Note: Le statut de la tâche est automatiquement déterminé
+                    par la colonne dans laquelle elle se trouve.
+                  </p>
+                </div>
+              </div>
+
               <div className="mb-4 grid grid-cols-2 gap-4">
                 <div>
                   <label

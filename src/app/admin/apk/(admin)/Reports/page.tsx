@@ -1,8 +1,7 @@
 "use client";
-import "./rapport.css";
-import { useState, useEffect } from "react";
+import "./report.css";
+import { useState } from "react";
 import type React from "react";
-import jsPDF from "jspdf";
 
 import { useToast } from "@/app/(components)/ui/use-toast";
 import {
@@ -93,7 +92,6 @@ interface Manager {
   name: string;
   email: string;
   avatar?: string;
-  clerk_user_id?: string;
   pivot?: {
     role?: string;
   };
@@ -183,7 +181,7 @@ interface Report {
 
 const AutomatedReport = () => {
   // États de configuration
-  const [project, setProject] = useState<string>("");
+  const [project, setProject] = useState<string>("all");
   const [period, setPeriod] = useState<string>("month");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [reportGenerated, setReportGenerated] = useState<boolean>(false);
@@ -203,8 +201,8 @@ const AutomatedReport = () => {
     data: projectData,
     isLoading: isLoadingProject,
     error: projectError,
-  } = useGetProjectStatsQuery(project, {
-    skip: !project,
+  } = useGetProjectStatsQuery(project !== "all" ? project : "", {
+    skip: project === "all",
   });
 
   // Récupérer l'historique des rapports
@@ -217,25 +215,6 @@ const AutomatedReport = () => {
   const [scheduleReport, { isLoading: isSchedulingReport }] =
     useScheduleProjectReportMutation();
 
-  // Sélectionner automatiquement le premier projet disponible
-  useEffect(() => {
-    if (allProjectsData?.projects && !project) {
-      // Filtrer les projets où l'utilisateur est manager
-      const managerProjects = allProjectsData.projects.filter(
-        (proj: Project) => {
-          return (
-            proj.manager &&
-            proj.manager.clerk_user_id === localStorage.getItem("currentUserId")
-          );
-        },
-      );
-
-      if (managerProjects.length > 0) {
-        setProject(managerProjects[0].id.toString());
-      }
-    }
-  }, [allProjectsData, project]);
-
   // Gestionnaire appelé lors du clic sur le bouton de génération
   const handleGenerate = async (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -244,12 +223,12 @@ const AutomatedReport = () => {
     setIsGenerating(true);
 
     try {
-      // Générer le rapport via l'API - toujours pour un projet spécifique
+      // Générer le rapport via l'API
       const response = await generateReport({
-        projectId: project,
+        projectId: project !== "all" ? project : undefined,
         reportData: {
           period: period,
-          includeAllProjects: false,
+          includeAllProjects: project === "all",
         },
       }).unwrap();
 
@@ -280,13 +259,13 @@ const AutomatedReport = () => {
     if (!scheduleDate) return;
 
     try {
-      // Planifier le rapport via l'API - toujours pour un projet spécifique
+      // Planifier le rapport via l'API
       const response = await scheduleReport({
-        projectId: project,
+        projectId: project !== "all" ? project : undefined,
         scheduleData: {
           scheduledDate: scheduleDate,
           period: period,
-          includeAllProjects: false,
+          includeAllProjects: project === "all",
         },
       }).unwrap();
 
@@ -310,177 +289,119 @@ const AutomatedReport = () => {
   };
 
   const handleDownload = (reportId?: string | number) => {
-    let dataToUse = generatedReportData || projectData;
+    let reportTitle = "";
+    let reportContent = "";
 
-    // Si c'est un rapport de l'historique, essayer de récupérer les données du projet associé
-    if (reportId && reportHistory) {
-      const historicalReport = reportHistory.find(
-        (r: Report) => r.id === reportId,
-      );
-      if (historicalReport && historicalReport.project_id) {
-        // Utiliser les données du projet associé au rapport historique
-        const associatedProject = allProjectsData?.projects?.find(
-          (proj: Project) =>
-            proj.id.toString() === historicalReport.project_id?.toString(),
-        );
-
-        if (associatedProject) {
-          // Créer un objet de données temporaire pour le rapport historique
-          dataToUse = {
-            project: associatedProject,
-            stats: {
-              totalTasks: associatedProject.totalTasks || 0,
-              completedTasks: associatedProject.completedTasks || 0,
-              completionRate: associatedProject.progress || 0,
-              tasksByStatus: {},
-              tasksByPriority: {},
-            },
-            team: [],
-          };
-        }
-      }
-    }
+    // Utiliser les données générées ou les données existantes
+    const dataToUse =
+      generatedReportData ||
+      (project === "all" ? allProjectsData : projectData);
 
     if (!dataToUse) {
       toast({
         title: "Aucune donnée disponible",
-        description: "Impossible de générer le rapport PDF",
+        description: "Veuillez d'abord générer un rapport",
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      const pdf = new jsPDF();
-      let yPosition = 20;
+    reportTitle = project === "all" ? "Tous les projets" : getProjectName();
+    reportContent = `RAPPORT DÉTAILLÉ: ${reportTitle}\n\n`;
+    reportContent += `Période: ${getPeriodspan()}\n`;
+    reportContent += `Généré le: ${new Date().toLocaleString("fr-FR")}\n\n`;
 
-      // Titre du rapport
-      pdf.setFontSize(20);
-      pdf.setFont("helvetica", "bold");
+    // Ajouter le contenu du rapport
+    if (project === "all") {
+      const projects = dataToUse.projects || [];
+      const summary = dataToUse.summary;
 
-      const reportTitle = reportId
-        ? `RAPPORT HISTORIQUE: ${dataToUse.project.name}`
-        : `RAPPORT DÉTAILLÉ: ${getProjectName()}`;
-
-      pdf.text(reportTitle, 20, yPosition);
-      yPosition += 15;
-
-      // Informations générales
-      pdf.setFontSize(12);
-      pdf.setFont("helvetica", "normal");
-
-      if (reportId) {
-        const historicalReport = reportHistory?.find(
-          (r: Report) => r.id === reportId,
-        );
-        if (historicalReport) {
-          pdf.text(
-            `Rapport généré le: ${new Date(historicalReport.created_at).toLocaleString("fr-FR")}`,
-            20,
-            yPosition,
-          );
-          yPosition += 8;
-        }
-      } else {
-        pdf.text(`Période: ${getPeriodspan()}`, 20, yPosition);
-        yPosition += 8;
+      if (summary) {
+        reportContent += `RÉSUMÉ GÉNÉRAL:\n`;
+        reportContent += `Total des projets: ${summary.totalProjects}\n`;
+        reportContent += `Projets terminés: ${summary.completedProjects}\n`;
+        reportContent += `Projets en cours: ${summary.inProgressProjects}\n`;
+        reportContent += `Total des tâches: ${summary.totalTasks}\n`;
+        reportContent += `Tâches terminées: ${summary.totalCompletedTasks}\n\n`;
       }
 
-      pdf.text(
-        `Téléchargé le: ${new Date().toLocaleString("fr-FR")}`,
-        20,
-        yPosition,
-      );
-      yPosition += 15;
-
-      // Informations du projet
+      projects.forEach((proj: Project) => {
+        reportContent += `PROJET: ${proj.name}\n`;
+        reportContent += `Description: ${proj.description || "N/A"}\n`;
+        reportContent += `Statut: ${getStatusText(proj.status || (proj.progress === 100 ? "completed" : "in-progress"))}\n`;
+        reportContent += `Période: ${formatDate(proj.start_date)} - ${formatDate(proj.end_date)}\n`;
+        reportContent += `Progression: ${proj.progress || 0}%\n`;
+        reportContent += `Équipe: ${proj.team || 0} membres\n`;
+        reportContent += `Tâches: ${proj.completedTasks || 0}/${proj.totalTasks || 0}\n\n`;
+      });
+    } else {
+      // Rapport pour un projet spécifique
       const project = dataToUse.project;
       const stats = dataToUse.stats;
+      const team = dataToUse.team || [];
 
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("INFORMATIONS DU PROJET", 20, yPosition);
-      yPosition += 10;
+      reportContent += `PROJET: ${project.name}\n`;
+      reportContent += `Description: ${project.description || "N/A"}\n`;
+      reportContent += `Statut: ${getStatusText(project.status || (stats.completionRate === 100 ? "completed" : "in-progress"))}\n`;
+      reportContent += `Période: ${formatDate(project.start_date)} - ${formatDate(project.end_date)}\n`;
+      reportContent += `Progression: ${stats.completionRate}%\n\n`;
 
-      pdf.setFontSize(12);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Nom: ${project.name}`, 20, yPosition);
-      yPosition += 8;
-      pdf.text(`Description: ${project.description || "N/A"}`, 20, yPosition);
-      yPosition += 8;
-      pdf.text(
-        `Statut: ${getStatusText(stats.completionRate === 100 ? "completed" : "in-progress")}`,
-        20,
-        yPosition,
-      );
-      yPosition += 8;
+      reportContent += `STATISTIQUES:\n`;
+      reportContent += `Total des tâches: ${stats.totalTasks}\n`;
+      reportContent += `Tâches terminées: ${stats.completedTasks}\n`;
+      reportContent += `Taux de complétion: ${stats.completionRate}%\n\n`;
 
-      if (project.start_date && project.end_date) {
-        pdf.text(
-          `Période: ${formatDate(project.start_date)} - ${formatDate(project.end_date)}`,
-          20,
-          yPosition,
-        );
-        yPosition += 8;
+      // Ajouter les statuts dynamiques (noms des colonnes)
+      if (stats.tasksByStatus) {
+        reportContent += `RÉPARTITION PAR STATUT (COLONNES):\n`;
+        Object.entries(stats.tasksByStatus).forEach(([status, count]) => {
+          reportContent += `- ${status}: ${count} tâches\n`;
+        });
+        reportContent += `\n`;
       }
 
-      pdf.text(`Progression: ${stats.completionRate}%`, 20, yPosition);
-      yPosition += 15;
-
-      // Statistiques
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("STATISTIQUES", 20, yPosition);
-      yPosition += 10;
-
-      pdf.setFontSize(12);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Total des tâches: ${stats.totalTasks}`, 20, yPosition);
-      yPosition += 8;
-      pdf.text(`Tâches terminées: ${stats.completedTasks}`, 20, yPosition);
-      yPosition += 8;
-      pdf.text(`Taux de complétion: ${stats.completionRate}%`, 20, yPosition);
-      yPosition += 15;
-
-      // Chef de projet
       if (project.manager) {
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("CHEF DE PROJET", 20, yPosition);
-        yPosition += 10;
-
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`Nom: ${project.manager.name}`, 20, yPosition);
-        yPosition += 8;
-        pdf.text(`Email: ${project.manager.email || "N/A"}`, 20, yPosition);
-        yPosition += 15;
+        reportContent += `CHEF DE PROJET:\n`;
+        reportContent += `Nom: ${project.manager.name}\n`;
+        reportContent += `Email: ${project.manager.email || "N/A"}\n\n`;
       }
 
-      // Sauvegarder le PDF
-      const fileName = reportId
-        ? `rapport-historique-${project.name.toLowerCase().replace(/\s+/g, "-")}.pdf`
-        : `rapport-detaille-${getProjectName().toLowerCase().replace(/\s+/g, "-")}.pdf`;
-
-      pdf.save(fileName);
-
-      toast({
-        title: "Téléchargement démarré",
-        description: `Votre rapport PDF est en cours de téléchargement`,
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Erreur lors de la génération du PDF:", error);
-      toast({
-        title: "Erreur de téléchargement",
-        description: "Une erreur s'est produite lors de la génération du PDF",
-        variant: "destructive",
-      });
+      if (team.length > 0) {
+        reportContent += `ÉQUIPE (${team.length} membres):\n`;
+        team.forEach((member: TeamMember) => {
+          reportContent += `- ${member.name}, ${member.role || "Membre"}\n`;
+          if (member.tasks && member.tasks.length > 0) {
+            reportContent += `  Tâches assignées: ${member.tasks.length}\n`;
+            member.tasks.forEach((task: Task) => {
+              reportContent += `  * ${task.name} (${task.status}, ${task.progress}%)\n`;
+            });
+          }
+          reportContent += `\n`;
+        });
+      }
     }
+
+    const blob = new Blob([reportContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rapport-detaille-${reportTitle.toLowerCase().replace(/\s+/g, "-")}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Téléchargement démarré",
+      description: "Votre rapport détaillé est en cours de téléchargement",
+      variant: "default",
+    });
   };
 
   // Fonction pour obtenir le nom du projet sélectionné
   const getProjectName = (): string => {
+    if (project === "all") return "Tous les projets";
+
     if (allProjectsData?.projects) {
       const foundProject = allProjectsData.projects.find(
         (p: Project) => p.id.toString() === project,
@@ -491,23 +412,12 @@ const AutomatedReport = () => {
     return projectData?.project?.name || "Projet inconnu";
   };
 
-  // Générer les options de projets à partir des données - seulement les projets où l'utilisateur est manager
+  // Générer les options de projets à partir des données
   const getProjectOptions = () => {
-    const options: { value: string; label: string }[] = [];
+    const options = [{ value: "all", label: "Tous les projets" }];
 
     if (allProjectsData?.projects) {
-      // Filtrer seulement les projets où l'utilisateur connecté est manager
-      const managerProjects = allProjectsData.projects.filter(
-        (proj: Project) => {
-          // Vérifier si l'utilisateur connecté est le manager de ce projet
-          return (
-            proj.manager &&
-            proj.manager.clerk_user_id === localStorage.getItem("currentUserId")
-          );
-        },
-      );
-
-      managerProjects.forEach((proj: Project) => {
+      allProjectsData.projects.forEach((proj: Project) => {
         options.push({ value: proj.id.toString(), label: proj.name });
       });
     }
@@ -522,7 +432,7 @@ const AutomatedReport = () => {
   ];
 
   const getProjectLabel = () => {
-    return getProjectName();
+    return project === "all" ? "Tous les projets" : getProjectName();
   };
 
   const getPeriodspan = () =>
@@ -616,7 +526,11 @@ const AutomatedReport = () => {
       return generatedReportData;
     }
 
-    // Toujours utiliser les données du projet spécifique
+    if (project === "all") {
+      debugData(allProjectsData, "All Projects Data");
+      return allProjectsData;
+    }
+
     debugData(projectData, "Single Project Data");
     return projectData;
   };
@@ -624,12 +538,12 @@ const AutomatedReport = () => {
   // Déterminer si les données sont en cours de chargement
   const isLoadingData =
     isLoadingAllProjects ||
-    isLoadingProject ||
+    (project !== "all" && isLoadingProject) ||
     isGeneratingReport ||
     isGenerating;
 
   // Vérifier s'il y a des erreurs
-  const hasErrorData = allProjectsError || projectError;
+  const hasErrorData = allProjectsError || (project !== "all" && projectError);
 
   const displayData = getDisplayData();
 
@@ -644,7 +558,7 @@ const AutomatedReport = () => {
             </h1>
             <p className="mt-2 text-black dark:text-white">
               Créez des rapports détaillés et professionnels en quelques clics
-              pour vos projets en tant que chef de projet
+              pour tous vos projets
             </p>
           </div>
         </div>
@@ -675,88 +589,74 @@ const AutomatedReport = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {getProjectOptions().length === 0 ? (
-                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-700 dark:bg-yellow-900/20">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                        Vous n'êtes manager d'aucun projet. Seuls les chefs de
-                        projet peuvent générer des rapports.
-                      </p>
-                    </div>
+                <form className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-black dark:text-white">
+                      Projet
+                    </label>
+                    <Select
+                      value={project}
+                      onValueChange={setProject}
+                      disabled={isLoadingData}
+                    >
+                      <SelectTrigger className="text-black dark:text-white">
+                        <SelectValue placeholder="Sélectionnez un projet" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getProjectOptions().map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <span className="text-black dark:text-white">
+                              {option.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ) : (
-                  <form className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-black dark:text-white">
-                        Projet
-                      </label>
-                      <Select
-                        value={project}
-                        onValueChange={setProject}
-                        disabled={isLoadingData}
-                      >
-                        <SelectTrigger className="text-black dark:text-white">
-                          <SelectValue placeholder="Sélectionnez un projet" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getProjectOptions().map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              <span className="text-black dark:text-white">
-                                {option.label}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-black dark:text-white">
-                        Période
-                      </label>
-                      <Select
-                        value={period}
-                        onValueChange={setPeriod}
-                        disabled={isLoadingData}
-                      >
-                        <SelectTrigger className="text-black dark:text-white">
-                          <SelectValue placeholder="Sélectionnez une période" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {periodOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              <span className="text-black dark:text-white">
-                                {option.label}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </form>
-                )}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-black dark:text-white">
+                      Période
+                    </label>
+                    <Select
+                      value={period}
+                      onValueChange={setPeriod}
+                      disabled={isLoadingData}
+                    >
+                      <SelectTrigger className="text-black dark:text-white">
+                        <SelectValue placeholder="Sélectionnez une période" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {periodOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <span className="text-black dark:text-white">
+                              {option.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </form>
               </CardContent>
-              {getProjectOptions().length > 0 && (
-                <CardFooter>
-                  <Button
-                    className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:bg-indigo-600"
-                    onClick={handleGenerate}
-                    disabled={isLoadingData || !project}
-                  >
-                    {isLoadingData ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Génération
-                        en cours...
-                      </span>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4 text-white" /> Générer
-                        le Rapport Détaillé
-                      </>
-                    )}
-                  </Button>
-                </CardFooter>
-              )}
+              <CardFooter>
+                <Button
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:bg-indigo-600"
+                  onClick={handleGenerate}
+                  disabled={isLoadingData}
+                >
+                  {isLoadingData ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Génération en
+                      cours...
+                    </span>
+                  ) : (
+                    <>
+                      <FileText className="mr-2 h-4 w-4 text-white" /> Générer
+                      le Rapport Détaillé
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
             </Card>
           </div>
 
@@ -801,12 +701,223 @@ const AutomatedReport = () => {
                       className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:bg-indigo-600"
                     >
                       <Download className="mr-2 h-4 w-4 text-white" />{" "}
-                      Télécharger PDF
+                      Télécharger
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-6">
-                  {displayData?.project ? (
+                  {project === "all" ? (
+                    <div>
+                      {/* Résumé général pour tous les projets */}
+                      {displayData?.summary && (
+                        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <Card className="border border-gray-200 shadow-sm dark:border-gray-700">
+                            <CardContent className="pt-4">
+                              <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/20">
+                                  <Briefcase className="h-6 w-6 text-blue-500 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Total Projets
+                                  </p>
+                                  <h3 className="text-2xl font-bold text-black dark:text-white">
+                                    {displayData.summary.totalProjects}
+                                  </h3>
+                                  <p className="text-xs text-green-600 dark:text-green-400">
+                                    {displayData.summary.completedProjects}{" "}
+                                    terminés
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="border border-gray-200 shadow-sm dark:border-gray-700">
+                            <CardContent className="pt-4">
+                              <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-green-100 p-3 dark:bg-green-900/20">
+                                  <CheckSquare className="h-6 w-6 text-green-500 dark:text-green-400" />
+                                </div>
+                                <div>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Total Tâches
+                                  </p>
+                                  <h3 className="text-2xl font-bold text-black dark:text-white">
+                                    {displayData.summary.totalTasks}
+                                  </h3>
+                                  <p className="text-xs text-green-600 dark:text-green-400">
+                                    {displayData.summary.totalCompletedTasks}{" "}
+                                    terminées
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <Card className="border border-gray-200 shadow-sm dark:border-gray-700">
+                            <CardContent className="pt-4">
+                              <div className="flex items-center gap-4">
+                                <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/20">
+                                  <TrendingUp className="h-6 w-6 text-purple-500 dark:text-purple-400" />
+                                </div>
+                                <div>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Taux Global
+                                  </p>
+                                  <h3 className="text-2xl font-bold text-black dark:text-white">
+                                    {displayData.summary.totalTasks > 0
+                                      ? Math.round(
+                                          (displayData.summary
+                                            .totalCompletedTasks /
+                                            displayData.summary.totalTasks) *
+                                            100,
+                                        )
+                                      : 0}
+                                    %
+                                  </h3>
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                                    de complétion
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
+                      {/* Liste des projets */}
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        {displayData.projects &&
+                        displayData.projects.length > 0 ? (
+                          displayData.projects.map((proj: Project) => (
+                            <Card
+                              key={proj.id}
+                              className="overflow-hidden border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-700"
+                            >
+                              <CardHeader className="dark:to-gray-750 bg-gradient-to-r from-indigo-50 to-violet-50 pb-2 dark:from-gray-800">
+                                <div className="flex items-start justify-between">
+                                  <CardTitle className="text-xl text-black dark:text-white">
+                                    {proj.name}
+                                  </CardTitle>
+                                  <Badge
+                                    className={getStatusColor(
+                                      proj.status ||
+                                        (proj.progress === 100
+                                          ? "completed"
+                                          : "in-progress"),
+                                    )}
+                                  >
+                                    {getStatusText(
+                                      proj.status ||
+                                        (proj.progress === 100
+                                          ? "completed"
+                                          : "in-progress"),
+                                    )}
+                                  </Badge>
+                                </div>
+                                <CardDescription className="flex items-center gap-2 text-black dark:text-white">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(proj.start_date)} -{" "}
+                                  {formatDate(proj.end_date)}
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="pt-4">
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                      Progression:
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <div className="progress-bar h-3 w-32">
+                                        <div
+                                          className="progress-bar-fill h-full"
+                                          style={{
+                                            width: `${proj.progress || 0}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span className="text-sm font-medium text-black dark:text-white">
+                                        {proj.progress || 0}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                      Chef de projet:
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage
+                                          src={
+                                            proj.manager?.avatar ||
+                                            "/placeholder.svg?height=40&width=40" ||
+                                            "/placeholder.svg"
+                                          }
+                                          alt={proj.manager?.name || "Manager"}
+                                        />
+                                        <AvatarFallback>
+                                          {proj.manager?.name
+                                            ? proj.manager.name
+                                                .split(" ")
+                                                .map((n: string) => n[0])
+                                                .join("")
+                                            : "?"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm text-black dark:text-white">
+                                        {proj.manager?.name || "Non assigné"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                      Équipe:
+                                    </span>
+                                    <span className="text-sm text-black dark:text-white">
+                                      {proj.team || 0} membres
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                      Tâches:
+                                    </span>
+                                    <span className="text-sm text-black dark:text-white">
+                                      {proj.completedTasks || 0}/
+                                      {proj.totalTasks || 0}
+                                    </span>
+                                  </div>
+                                </div>
+                              </CardContent>
+                              <CardFooter className="border-t border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+                                <Button
+                                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:bg-indigo-600"
+                                  onClick={() =>
+                                    handleSelectProject(proj.id.toString())
+                                  }
+                                >
+                                  Voir les détails
+                                </Button>
+                              </CardFooter>
+                            </Card>
+                          ))
+                        ) : (
+                          <div className="col-span-2 py-12 text-center">
+                            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                              <AlertTriangle className="h-6 w-6 text-yellow-500" />
+                            </div>
+                            <h3 className="mb-2 text-lg font-medium text-black dark:text-white">
+                              Aucun projet trouvé
+                            </h3>
+                            <p className="text-gray-500 dark:text-gray-400">
+                              Vous n'avez pas encore de projets ou vous n'avez
+                              pas accès aux projets existants.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : displayData?.project ? (
                     <div className="space-y-6 border-b border-gray-200 pb-8 last:border-0 dark:border-gray-700">
                       {/* En-tête du projet avec design amélioré */}
                       <div className="dark:to-gray-750/50 relative overflow-hidden rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 p-6 shadow-sm dark:border-gray-700 dark:from-gray-800/50">
@@ -947,7 +1058,7 @@ const AutomatedReport = () => {
                                         </Badge>
                                       </div>
                                       <span className="text-sm font-medium text-black dark:text-white">
-                                        {Number(count) || 0}
+                                        {String(count)}
                                       </span>
                                     </div>
                                   ))}
@@ -960,36 +1071,33 @@ const AutomatedReport = () => {
                                 <div className="space-y-2">
                                   {Object.entries(
                                     displayData.stats?.tasksByPriority || {},
-                                  ).map(([priority, count]) => {
-                                    const priorityCount = Number(count) || 0;
-                                    return (
-                                      <div
-                                        key={priority}
-                                        className="flex items-center justify-between"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <span
-                                            className={`h-3 w-3 rounded-full ${
-                                              priority === "urgente"
-                                                ? "bg-red-500"
-                                                : priority === "haute"
-                                                  ? "bg-orange-500"
-                                                  : priority === "moyenne"
-                                                    ? "bg-blue-500"
-                                                    : "bg-green-500"
-                                            }`}
-                                          ></span>
-                                          <span className="text-sm text-black dark:text-white">
-                                            {priority.charAt(0).toUpperCase() +
-                                              priority.slice(1)}
-                                          </span>
-                                        </div>
-                                        <span className="text-sm font-medium text-black dark:text-white">
-                                          {priorityCount}
+                                  ).map(([priority, count]) => (
+                                    <div
+                                      key={priority}
+                                      className="flex items-center justify-between"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span
+                                          className={`h-3 w-3 rounded-full ${
+                                            priority === "urgente"
+                                              ? "bg-red-500"
+                                              : priority === "haute"
+                                                ? "bg-orange-500"
+                                                : priority === "moyenne"
+                                                  ? "bg-blue-500"
+                                                  : "bg-green-500"
+                                          }`}
+                                        ></span>
+                                        <span className="text-sm text-black dark:text-white">
+                                          {priority.charAt(0).toUpperCase() +
+                                            priority.slice(1)}
                                         </span>
                                       </div>
-                                    );
-                                  })}
+                                      <span className="text-sm font-medium text-black dark:text-white">
+                                        {String(count)}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             </div>
@@ -1014,8 +1122,6 @@ const AutomatedReport = () => {
                                   src={
                                     displayData.project.manager.avatar ||
                                     "/placeholder.svg?height=40&width=40" ||
-                                    "/placeholder.svg" ||
-                                    "/placeholder.svg" ||
                                     "/placeholder.svg"
                                   }
                                   alt={displayData.project.manager.name}
@@ -1092,8 +1198,6 @@ const AutomatedReport = () => {
                                             src={
                                               member.avatar ||
                                               "/placeholder.svg?height=40&width=40" ||
-                                              "/placeholder.svg" ||
-                                              "/placeholder.svg" ||
                                               "/placeholder.svg"
                                             }
                                             alt={member.name}
@@ -1256,152 +1360,78 @@ const AutomatedReport = () => {
                           </Card>
                         )}
 
-                      {/* Évolution des tâches par statut avec vraies données */}
-                      {displayData.stats?.tasksByStatus && (
-                        <Card className="overflow-hidden border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-700">
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-black dark:text-white">
-                              <TrendingUp className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
-                              Évolution des tâches par statut
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-6">
-                              {/* Graphique en barres pour les statuts */}
-                              <div className="relative h-64">
-                                <div className="absolute inset-0 flex items-end justify-between px-4">
-                                  {Object.entries(
-                                    displayData.stats.tasksByStatus,
-                                  ).map(([status, count], index) => {
-                                    const taskCount = Number(count) || 0;
-                                    const allCounts = Object.values(
-                                      displayData.stats.tasksByStatus,
-                                    ).map((c) => Number(c) || 0);
-                                    const maxCount = Math.max(...allCounts, 1); // Éviter la division par zéro
-                                    const height =
-                                      maxCount > 0
-                                        ? (taskCount / maxCount) * 200
-                                        : 10;
-
-                                    return (
-                                      <div
-                                        key={status}
-                                        className="flex flex-col items-center"
-                                        style={{
-                                          width: `${100 / Object.keys(displayData.stats.tasksByStatus).length - 2}%`,
-                                        }}
-                                      >
-                                        <div className="flex flex-col items-center">
-                                          <span className="mb-2 text-sm font-medium text-black dark:text-white">
-                                            {taskCount}
-                                          </span>
+                      {/* Tendances de performance */}
+                      {displayData.stats?.performanceData &&
+                        displayData.stats.performanceData.length > 0 && (
+                          <Card className="overflow-hidden border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-700">
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2 text-black dark:text-white">
+                                <TrendingUp className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+                                Tendances de performance
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="flex h-64 items-center justify-center">
+                                <div className="w-full space-y-4">
+                                  <div className="mb-2 flex items-center justify-between">
+                                    <h4 className="text-sm font-medium text-black dark:text-white">
+                                      Tâches complétées par mois
+                                    </h4>
+                                  </div>
+                                  <div className="relative h-40">
+                                    <div className="absolute inset-0 flex items-end justify-between px-2">
+                                      {displayData.stats.performanceData.map(
+                                        (
+                                          item: PerformanceDataItem,
+                                          index: number,
+                                        ) => (
                                           <div
-                                            className={`w-full rounded-t-lg transition-all duration-500 ${
-                                              status
-                                                .toLowerCase()
-                                                .includes("terminé") ||
-                                              status
-                                                .toLowerCase()
-                                                .includes("done")
-                                                ? "bg-green-500"
-                                                : status
-                                                      .toLowerCase()
-                                                      .includes("cours") ||
-                                                    status
-                                                      .toLowerCase()
-                                                      .includes("progress")
-                                                  ? "bg-blue-500"
-                                                  : status
-                                                        .toLowerCase()
-                                                        .includes("révision") ||
-                                                      status
-                                                        .toLowerCase()
-                                                        .includes("review")
-                                                    ? "bg-yellow-500"
-                                                    : "bg-purple-500"
-                                            }`}
-                                            style={{
-                                              height: `${height}px`,
-                                              minHeight: "20px",
-                                            }}
-                                          />
-                                        </div>
-                                        <span className="mt-2 break-words text-center text-xs text-gray-600 dark:text-gray-400">
-                                          {status}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Légende */}
-                              <div className="flex flex-wrap justify-center gap-4">
-                                {Object.entries(
-                                  displayData.stats.tasksByStatus,
-                                ).map(([status, count]) => {
-                                  const taskCount = Number(count) || 0;
-                                  return (
-                                    <div
-                                      key={status}
-                                      className="flex items-center gap-2"
-                                    >
-                                      <div
-                                        className={`h-3 w-3 rounded-full ${
-                                          status
-                                            .toLowerCase()
-                                            .includes("terminé") ||
-                                          status.toLowerCase().includes("done")
-                                            ? "bg-green-500"
-                                            : status
-                                                  .toLowerCase()
-                                                  .includes("cours") ||
-                                                status
-                                                  .toLowerCase()
-                                                  .includes("progress")
-                                              ? "bg-blue-500"
-                                              : status
-                                                    .toLowerCase()
-                                                    .includes("révision") ||
-                                                  status
-                                                    .toLowerCase()
-                                                    .includes("review")
-                                                ? "bg-yellow-500"
-                                                : "bg-purple-500"
-                                        }`}
-                                      />
+                                            key={index}
+                                            className="flex flex-col items-center"
+                                          >
+                                            <div className="relative flex w-12 justify-center">
+                                              <div
+                                                className="performance-bar w-8"
+                                                style={{
+                                                  height: `${Math.max((item.actuel / 10) * 100, 10)}px`,
+                                                }}
+                                              ></div>
+                                              <div
+                                                className="performance-bar-previous absolute left-1 w-8"
+                                                style={{
+                                                  height: `${Math.max((item.precedent / 10) * 100, 10)}px`,
+                                                  opacity: 0.7,
+                                                  zIndex: -1,
+                                                }}
+                                              ></div>
+                                            </div>
+                                            <span className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                              {item.name}
+                                            </span>
+                                          </div>
+                                        ),
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-center gap-6">
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-3 w-3 rounded-full bg-indigo-500"></div>
                                       <span className="text-xs text-gray-600 dark:text-gray-400">
-                                        {status} ({taskCount})
+                                        Actuel
                                       </span>
                                     </div>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Statistiques supplémentaires */}
-                              <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
-                                <div className="text-center">
-                                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                    {displayData.stats.completionRate}%
-                                  </p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Taux de complétion
-                                  </p>
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                    {displayData.stats.totalTasks -
-                                      displayData.stats.completedTasks}
-                                  </p>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Tâches restantes
-                                  </p>
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                                        Précédent
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                            </CardContent>
+                          </Card>
+                        )}
                     </div>
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
@@ -1496,7 +1526,7 @@ const AutomatedReport = () => {
               className="ml-auto flex gap-2 border-indigo-200 text-black hover:bg-indigo-50 dark:border-indigo-700 dark:text-white dark:hover:bg-indigo-900"
             >
               <Briefcase className="h-4 w-4 text-black dark:text-white" />{" "}
-              Historique des rapports
+              Rapports précédents
             </Button>
           </SheetTrigger>
           <SheetContent>
@@ -1505,7 +1535,7 @@ const AutomatedReport = () => {
                 Historique des rapports
               </SheetTitle>
               <SheetDescription className="text-black dark:text-white">
-                Liste des rapports détaillés générés pour vos projets
+                Liste des derniers rapports détaillés générés pour vos projets
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-4 py-6">
@@ -1514,133 +1544,39 @@ const AutomatedReport = () => {
                   <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
                 </div>
               ) : reportHistory && reportHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {reportHistory.map((report: Report) => {
-                    // Trouver le projet associé au rapport
-                    const associatedProject = allProjectsData?.projects?.find(
-                      (proj: Project) =>
-                        proj.id.toString() === report.project_id?.toString(),
-                    );
-
-                    return (
-                      <Card
-                        key={report.id}
-                        className="border border-gray-200 transition-all hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-indigo-900"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="mb-2 flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                                <h4 className="font-medium text-black dark:text-white">
-                                  {report.name ||
-                                    `Rapport - ${associatedProject?.name || "Projet"}`}
-                                </h4>
-                              </div>
-
-                              {associatedProject && (
-                                <div className="mb-2">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Projet:{" "}
-                                  </span>
-                                  <span className="text-xs font-medium text-black dark:text-white">
-                                    {associatedProject.name}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>
-                                    Généré le{" "}
-                                    {new Date(
-                                      report.created_at,
-                                    ).toLocaleDateString("fr-FR", {
-                                      day: "numeric",
-                                      month: "long",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                </div>
-
-                                {report.project_id && (
-                                  <div className="flex items-center gap-1">
-                                    <Briefcase className="h-3 w-3" />
-                                    <span>ID Projet: {report.project_id}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="ml-4 flex flex-col gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownload(report.id)}
-                                className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-200"
-                              >
-                                <Download className="mr-1 h-4 w-4" />
-                                PDF
-                              </Button>
-
-                              {/* Bouton pour régénérer le rapport pour ce projet */}
-                              {report.project_id && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setProject(report.project_id!.toString());
-                                    setReportGenerated(false);
-                                    setGeneratedReportData(null);
-                                    window.scrollTo({
-                                      top: 0,
-                                      behavior: "smooth",
-                                    });
-                                  }}
-                                  className="border-gray-300 text-xs text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-                                >
-                                  <TrendingUp className="mr-1 h-3 w-3" />
-                                  Voir projet
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="py-12 text-center">
-                  <div className="mx-auto mb-4 w-fit rounded-full bg-gray-50 p-4 dark:bg-gray-800">
-                    <FileText className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-medium text-black dark:text-white">
-                    Aucun rapport dans l'historique
-                  </h3>
-                  <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                    Vous n'avez pas encore généré de rapports. Créez votre
-                    premier rapport pour le voir apparaître ici.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Fermer le sheet et scroller vers le formulaire
-                      const sheetTrigger = document.querySelector(
-                        '[data-state="open"]',
-                      ) as HTMLElement;
-                      if (sheetTrigger) sheetTrigger.click();
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900"
+                reportHistory.map((report: Report) => (
+                  <Card
+                    key={report.id}
+                    className="border border-gray-200 transition-all hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-indigo-900"
                   >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Générer un rapport
-                  </Button>
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <h4 className="font-medium text-black dark:text-white">
+                          {report.name}
+                        </h4>
+                        <p className="text-xs text-black dark:text-white">
+                          Généré le{" "}
+                          {new Date(report.created_at).toLocaleDateString(
+                            "fr-FR",
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownload(report.id)}
+                        className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-200"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Aucun rapport dans l'historique
+                  </p>
                 </div>
               )}
             </div>

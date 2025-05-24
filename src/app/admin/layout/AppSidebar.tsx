@@ -25,7 +25,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
+    name: "Tableau de bord",
     subItems: [
       { name: "Vue globale ", path: "/admin/apk/vue" },
       {
@@ -33,14 +33,14 @@ const navItems: NavItem[] = [
         path: "/admin/apk/cycle",
         pro: false,
       },
-      { name: "Logs d’Activité IA", path: "/admin/apk/logs", pro: false },
+      { name: "Journal d’Activité IA", path: "/admin/apk/logs", pro: false },
     ],
   },
   {
     icon: <ChartBarIcon width={22} height={22} />, // Taille définie ici
-    name: "l'IA & l'automatisation",
+    name: "Analytique & Performance",
     subItems: [
-      { name: "Export de Rapports", path: "/admin/apk/Export", pro: false },
+      { name: " Rapports", path: "/admin/apk/Reports", pro: false },
       {
         name: "Analyse  des Retards",
         path: "/admin/apk/analyseretard",
@@ -49,7 +49,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    name: "Notifications & sécurité",
+    name: "Audit & Traçabilité",
     subItems: [
       {
         name: "Historique des Modification",
@@ -60,9 +60,9 @@ const navItems: NavItem[] = [
     icon: <ShieldCheckIcon width={22} height={22} />, // Évoque la sécurité et le suivi des modifications
   },
   {
-    name: " utilisateurs & accès",
+    name: " Équipe & Permissions",
     subItems: [
-      { name: " Talents &  Accès", path: "/admin/apk/users", pro: false },
+      { name: " utilisateurs &  Accès", path: "/admin/apk/users", pro: false },
       {
         name: "Permissions Intelligentes ",
         path: "/admin/apk/tableau",
@@ -74,7 +74,7 @@ const navItems: NavItem[] = [
 
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
+    name: "Profil",
     path: "/admin/apk/profile",
   },
 ];
@@ -340,21 +340,26 @@ const AppSidebar: React.FC = () => {
             <>
               <Image
                 className="dark:hidden"
-                src="/img/logo/maison.png"
+                src="/img/logo/logo.png"
                 alt="Logo"
                 width={200}
                 height={40}
               />
               <Image
                 className="hidden dark:block"
-                src="/img/logo/maison.png"
+                src="/img/logo/logo.png"
                 alt="Logo"
                 width={200}
                 height={40}
               />
             </>
           ) : (
-            <Image src="/img/logo/mdw.ico" alt="Logo" width={32} height={32} />
+            <Image
+              src="/img/logo/favicon.ico"
+              alt="Logo"
+              width={32}
+              height={32}
+            />
           )}
         </Link>
       </div>

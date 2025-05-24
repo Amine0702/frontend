@@ -43,13 +43,13 @@ const ListView: React.FC<ListViewProps> = ({ project, onTaskClick }) => {
   // Obtenir la classe CSS en fonction de l'état
   const getStatusClass = (status: Task["status"]): string => {
     switch (status) {
-      case "à_faire":
-        return "bg-gray-100 text-gray-700";
+      case "a_faire":
+        return "bg-blue-100 text-blue-700";
       case "en_cours":
         return "bg-violet-100 text-violet-700";
-      case "en_révision":
+      case "en_revision":
         return "bg-yellow-100 text-yellow-700";
-      case "terminé":
+      case "termine":
         return "bg-green-100 text-green-700";
       default:
         return "bg-gray-100 text-gray-700";

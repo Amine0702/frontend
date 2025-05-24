@@ -1,12 +1,11 @@
-import Navbar from "@/app/meeting/components/Navbar"
+import Navbar from "@/app/meeting/components/Navbar";
 import CreateMeetingPage from "./CreateMeetingPage";
 
 export default function Home() {
   return (
-    <div>
-        <Navbar />
-        <CreateMeetingPage />
-    </div>  
+    <div className="meeting-container h-full w-full p-4">
+      <Navbar />
+      <CreateMeetingPage />
+    </div>
   );
 }
-

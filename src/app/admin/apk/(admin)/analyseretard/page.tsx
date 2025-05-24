@@ -14,7 +14,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import {
   useGetAllProjectsStatsQuery,
-  useGetProjectLifecycleQuery,
+  useGetProjectTaskAnalysisQuery,
 } from "@/app/state/api";
 
 // Palette de couleurs
@@ -42,7 +42,7 @@ type Task = {
 
 // Définition du type Projet
 type Projet = {
-  id: number; // Changé pour être uniquement un nombre
+  id: number;
   name: string;
   dateDebut: string;
   chefProjet: string;
@@ -50,24 +50,32 @@ type Projet = {
   tasks?: Task[];
 };
 
-// Composant pour afficher un badge en fonction du statut
+// Fonction pour vérifier si une tâche est terminée
+const isTaskCompleted = (status: Task["status"]) => {
+  return status === "completed" || status === "Terminé";
+};
+
+// Modifier le composant RiskBadge pour afficher correctement les statuts
 const RiskBadge = ({ status }: { status: Task["status"] }) => {
   const statusConfig = {
     "on-track": {
       color: "bg-green-100 text-green-800",
-      label: "Dans les temps",
+      label: "En_cours",
     },
     risk: { color: "bg-yellow-100 text-yellow-800", label: "À risque" },
     delayed: { color: "bg-orange-100 text-orange-800", label: "En retard" },
     completed: { color: "bg-green-100 text-green-800", label: "Terminé" },
-    active: { color: "bg-blue-100 text-blue-800", label: "En cours" },
+    active: { color: "bg-blue-100 text-blue-800", label: "En_cours" },
     planned: { color: "bg-purple-100 text-purple-800", label: "Planifié" },
   };
+
+  const config = statusConfig[status] || statusConfig["on-track"];
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${statusConfig[status].color}`}
+      className={`rounded-full px-2 py-1 text-xs font-medium ${config.color}`}
     >
-      {statusConfig[status].label}
+      {config.label}
     </span>
   );
 };
@@ -89,10 +97,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// Graphique des retards prédis
+// Graphique des retards prédis (exclut les tâches terminées)
 const DelayChart = ({ tasks }: { tasks: Task[] }) => {
   const chartData = tasks
-    .filter((task) => task.predictedDelay !== undefined)
+    .filter(
+      (task) =>
+        task.predictedDelay !== undefined &&
+        task.predictedDelay > 0 &&
+        !isTaskCompleted(task.status),
+    )
     .map((task) => ({
       name: task.title,
       delay: task.predictedDelay,
@@ -106,7 +119,7 @@ const DelayChart = ({ tasks }: { tasks: Task[] }) => {
           Retards Prédits
         </h2>
         <div className="flex h-[180px] items-center justify-center">
-          <p className="text-gray-500">Aucune donnée de retard disponible</p>
+          <p className="text-gray-500">Aucune tâche en retard détectée</p>
         </div>
       </div>
     );
@@ -116,7 +129,7 @@ const DelayChart = ({ tasks }: { tasks: Task[] }) => {
     <div className="rounded-xl bg-white p-6 shadow-lg dark:bg-slate-800">
       <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-white">
         <ChartBarIcon className="h-6 w-6" style={{ color: primaryColor }} />
-        Retards Prédits
+        Retards Prédits (Tâches en cours)
       </h2>
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={chartData}>
@@ -191,10 +204,11 @@ const Header = ({ projet }: { projet: Projet }) => {
   );
 };
 
-// Section des statistiques
+// Section des statistiques (exclut les tâches terminées pour le calcul des retards)
 const Statistics = ({ tasks }: { tasks: Task[] }) => {
-  // Calculate statistics based on tasks
-  const tasksWithDelay = tasks.filter(
+  // Calculate statistics based on non-completed tasks only
+  const activeTasks = tasks.filter((task) => !isTaskCompleted(task.status));
+  const tasksWithDelay = activeTasks.filter(
     (task) => task.predictedDelay !== undefined && task.predictedDelay > 0,
   );
   const totalDelay = tasksWithDelay.reduce(
@@ -206,7 +220,7 @@ const Statistics = ({ tasks }: { tasks: Task[] }) => {
       ? (totalDelay / tasksWithDelay.length).toFixed(1)
       : "0.0";
 
-  const tasksWithConfidence = tasks.filter(
+  const tasksWithConfidence = activeTasks.filter(
     (task) => task.confidenceLevel !== undefined && task.confidenceLevel > 0,
   );
   const averageConfidence =
@@ -220,29 +234,15 @@ const Statistics = ({ tasks }: { tasks: Task[] }) => {
       : "0";
 
   // Estimate time saved (this is a placeholder calculation)
-  const completedTasks = tasks.filter(
-    (task) => task.status === "completed",
+  const completedTasks = tasks.filter((task) =>
+    isTaskCompleted(task.status),
   ).length;
   const timeSaved = `${completedTasks * 3}h`;
-
-  // Ajouter des logs pour déboguer
-  console.log(
-    "Tasks with delay:",
-    tasksWithDelay.length,
-    "Average delay:",
-    averageDelay,
-  );
-  console.log(
-    "Tasks with confidence:",
-    tasksWithConfidence.length,
-    "Average confidence:",
-    averageConfidence,
-  );
 
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatsCard
-        title="Retard moyen prédit"
+        title="Retard moyen prédit (tâches actives)"
         value={`${averageDelay} j`}
         icon={
           <ExclamationTriangleIcon
@@ -303,7 +303,7 @@ const TasksTable = ({ tasks }: { tasks: Task[] }) => {
           <option value="all">Tous les statuts</option>
           <option value="risk">À risque</option>
           <option value="delayed">En retard</option>
-          <option value="active">En cours</option>
+          <option value="active">En_cours</option>
           <option value="completed">Terminé</option>
         </select>
       </div>
@@ -335,22 +335,36 @@ const TasksTable = ({ tasks }: { tasks: Task[] }) => {
               <RiskBadge status={task.status} />
             </div>
             <div className="w-32 px-6">
-              <span
-                className={`font-medium ${task.predictedDelay && task.predictedDelay > 10 ? "text-red-600" : task.predictedDelay && task.predictedDelay > 5 ? "text-orange-500" : "text-gray-700"}`}
-              >
-                {task.predictedDelay || 0} j
-              </span>
+              {isTaskCompleted(task.status) ? (
+                <span className="font-medium text-green-600">Terminée</span>
+              ) : (
+                <span
+                  className={`font-medium ${
+                    task.predictedDelay && task.predictedDelay > 10
+                      ? "text-red-600"
+                      : task.predictedDelay && task.predictedDelay > 5
+                        ? "text-orange-500"
+                        : "text-gray-700"
+                  }`}
+                >
+                  {task.predictedDelay || 0} j
+                </span>
+              )}
             </div>
             <div className="w-32 px-6">
-              <div className="flex items-center">
-                <div className="h-2 w-20 rounded-full bg-purple-200">
-                  <div
-                    className="h-full rounded-full bg-purple-600"
-                    style={{ width: `${task.confidenceLevel || 0}%` }}
-                  />
+              {isTaskCompleted(task.status) ? (
+                <span className="font-medium text-green-600">100%</span>
+              ) : (
+                <div className="flex items-center">
+                  <div className="h-2 w-20 rounded-full bg-purple-200">
+                    <div
+                      className="h-full rounded-full bg-purple-600"
+                      style={{ width: `${task.confidenceLevel || 0}%` }}
+                    />
+                  </div>
+                  <span className="ml-2">{task.confidenceLevel || 0}%</span>
                 </div>
-                <span className="ml-2">{task.confidenceLevel || 0}%</span>
-              </div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -367,12 +381,16 @@ const TasksTable = ({ tasks }: { tasks: Task[] }) => {
   );
 };
 
-// Alerte proactive en cas de tâches présentant un risque ou retard
+// Alerte proactive en cas de tâches présentant un risque ou retard (exclut les tâches terminées)
 const ProactiveAlert = ({ tasks }: { tasks: Task[] }) => {
   const alertTasks = tasks.filter(
-    (task) => task.status === "risk" || task.status === "delayed",
+    (task) =>
+      !isTaskCompleted(task.status) &&
+      (task.status === "risk" || task.status === "delayed"),
   );
+
   if (alertTasks.length === 0) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -381,8 +399,8 @@ const ProactiveAlert = ({ tasks }: { tasks: Task[] }) => {
     >
       <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
       <span className="text-sm text-red-800 dark:text-red-300">
-        Attention : {alertTasks.length} tâche(s) présentent un risque ou sont en
-        retard.
+        Attention : {alertTasks.length} tâche(s) active(s) présentent un risque
+        ou sont en retard.
       </span>
     </motion.div>
   );
@@ -441,7 +459,7 @@ const ProjectList = ({
   );
 };
 
-// Modifier le composant principal pour gérer les erreurs API
+// Modifier le composant principal pour utiliser la nouvelle API
 export default function AnalyseDeRetard() {
   const [selectedProject, setSelectedProject] = useState<Projet | null>(null);
   const {
@@ -450,56 +468,21 @@ export default function AnalyseDeRetard() {
     error: projectsError,
   } = useGetAllProjectsStatsQuery({});
   const {
-    data: projectLifecycle,
-    isLoading: lifecycleLoading,
-    error: lifecycleError,
-  } = useGetProjectLifecycleQuery(
+    data: projectTaskAnalysis,
+    isLoading: analysisLoading,
+    error: analysisError,
+  } = useGetProjectTaskAnalysisQuery(
     selectedProject ? Number(selectedProject.id) : 0,
     { skip: !selectedProject },
   );
 
   // Ajouter des logs pour déboguer
   useEffect(() => {
-    if (projectLifecycle) {
-      console.log("Project lifecycle data:", projectLifecycle);
-      console.log("Tasks:", projectLifecycle.tasks);
-
-      // Vérifier les valeurs de retard et de confiance
-      const tasksWithDelay =
-        projectLifecycle.tasks?.filter(
-          (t: { predictedDelay: number }) => t.predictedDelay > 0,
-        ) || [];
-      const tasksWithConfidence =
-        projectLifecycle.tasks?.filter(
-          (t: { confidenceLevel: number }) => t.confidenceLevel > 0,
-        ) || [];
-
-      console.log("Tasks with delay:", tasksWithDelay.length);
-      console.log("Tasks with confidence:", tasksWithConfidence.length);
-
-      // Calculer les moyennes
-      const avgDelay =
-        tasksWithDelay.length > 0
-          ? tasksWithDelay.reduce(
-              (sum: any, t: { predictedDelay: any }) =>
-                sum + (t.predictedDelay || 0),
-              0,
-            ) / tasksWithDelay.length
-          : 0;
-
-      const avgConfidence =
-        tasksWithConfidence.length > 0
-          ? tasksWithConfidence.reduce(
-              (sum: any, t: { confidenceLevel: any }) =>
-                sum + (t.confidenceLevel || 0),
-              0,
-            ) / tasksWithConfidence.length
-          : 0;
-
-      console.log("Average delay:", avgDelay.toFixed(1));
-      console.log("Average confidence:", avgConfidence.toFixed(0));
+    if (projectTaskAnalysis) {
+      console.log("Project task analysis data:", projectTaskAnalysis);
+      console.log("Tasks:", projectTaskAnalysis.tasks);
     }
-  }, [projectLifecycle]);
+  }, [projectTaskAnalysis]);
 
   // Transform projects data for the project list
   const projects: Projet[] =
@@ -511,12 +494,12 @@ export default function AnalyseDeRetard() {
       equipe: `${project.team} membre(s)`,
     })) || [];
 
-  // If a project is selected and we have lifecycle data
+  // If a project is selected and we have analysis data
   const selectedProjectWithTasks: Projet | null =
-    selectedProject && projectLifecycle
+    selectedProject && projectTaskAnalysis
       ? {
           ...selectedProject,
-          tasks: projectLifecycle.tasks || [],
+          tasks: projectTaskAnalysis.tasks || [],
         }
       : null;
 
@@ -574,7 +557,7 @@ export default function AnalyseDeRetard() {
     );
   }
 
-  if (lifecycleLoading) {
+  if (analysisLoading) {
     return (
       <section className="p-6">
         <button
@@ -596,8 +579,8 @@ export default function AnalyseDeRetard() {
   }
 
   // Gérer l'erreur spécifique pour les projets en attente d'approbation
-  if (lifecycleError) {
-    const errorData = lifecycleError as any;
+  if (analysisError) {
+    const errorData = analysisError as any;
     const errorMessage =
       errorData?.data?.message ||
       "Erreur lors du chargement des données du projet";

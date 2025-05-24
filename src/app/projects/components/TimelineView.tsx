@@ -2,7 +2,6 @@
 
 import type React from "react";
 import type { Project, Task } from "../types/kanban";
-import { useKanbanStore } from "../store/kanbanStore";
 import { addDays, format, differenceInDays, isAfter } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Clock, Calendar, AlertTriangle } from "lucide-react";
@@ -16,8 +15,6 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   project,
   onTaskClick,
 }) => {
-  const { openTaskModal } = useKanbanStore();
-
   // Rassembler toutes les tâches qui ont une date d'échéance
   const tasksWithDates = project.columns
     .flatMap((col) => col.tasks)

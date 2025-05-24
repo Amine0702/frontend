@@ -25,6 +25,9 @@ export const api = createApi({
     "Teams",
     "TeamMembers",
     "ProjectStats",
+    "Notifications",
+    "Notes",
+    "Reports",
   ],
   endpoints: (builder) => ({
     // User endpoints
@@ -207,6 +210,7 @@ export const api = createApi({
       invalidatesTags: (result, error, { column_id }) => [
         { type: "Tasks" },
         { type: "Columns" },
+        { type: "Notifications" },
       ],
     }),
 
@@ -217,7 +221,7 @@ export const api = createApi({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["Tasks", "Columns"],
+      invalidatesTags: ["Tasks", "Columns", "Notifications"],
     }),
 
     updateTask: builder.mutation({
@@ -226,7 +230,10 @@ export const api = createApi({
         method: "PUT",
         body: taskData,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: "Tasks", id }],
+      invalidatesTags: (result, error, { id }) => [
+        { type: "Tasks", id },
+        { type: "Notifications" },
+      ],
     }),
 
     deleteTask: builder.mutation({
@@ -234,7 +241,7 @@ export const api = createApi({
         url: `/tasks/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Tasks", "Columns"],
+      invalidatesTags: ["Tasks", "Columns", "Notifications"],
     }),
 
     moveTask: builder.mutation({
@@ -243,7 +250,7 @@ export const api = createApi({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["Tasks", "Columns"],
+      invalidatesTags: ["Tasks", "Columns", "Notifications"],
     }),
 
     toggleTaskTimer: builder.mutation({
@@ -251,7 +258,10 @@ export const api = createApi({
         url: `/tasks/${id}/toggle-timer`,
         method: "POST",
       }),
-      invalidatesTags: (result, error, id) => [{ type: "Tasks", id }],
+      invalidatesTags: (result, error, id) => [
+        { type: "Tasks", id },
+        { type: "Notifications" },
+      ],
     }),
 
     addComment: builder.mutation({
@@ -262,6 +272,7 @@ export const api = createApi({
       }),
       invalidatesTags: (result, error, { taskId }) => [
         { type: "Tasks", id: taskId },
+        { type: "Notifications" },
       ],
     }),
 
@@ -279,6 +290,7 @@ export const api = createApi({
       },
       invalidatesTags: (result, error, { taskId }) => [
         { type: "Tasks", id: taskId },
+        { type: "Notifications" },
       ],
     }),
 
@@ -290,11 +302,21 @@ export const api = createApi({
       }),
       transformResponse: (response: unknown) => {
         console.log("Raw teams response:", response);
-        // Vérifier si response est un objet et s'il a une propriété data
-        if (response && typeof response === "object" && "data" in response) {
+        // If response is already an array, return it directly
+        if (Array.isArray(response)) {
+          return response;
+        }
+        // If response has a data property that's an array, return that
+        if (
+          response &&
+          typeof response === "object" &&
+          "data" in response &&
+          Array.isArray((response as any).data)
+        ) {
           return (response as { data: any }).data;
         }
-        return response;
+        // Otherwise return an empty array to prevent errors
+        return [];
       },
       providesTags: ["Teams"],
     }),
@@ -365,43 +387,40 @@ export const api = createApi({
     }),
 
     // Notes endpoints
-    getUserNotes: builder.query({
-      query: (clerkUserId) => `/notes/user/${clerkUserId}`,
-      providesTags: ["Reports"],
+    getNotes: builder.query({
+      query: () => "/notes",
+      providesTags: ["Notes"],
     }),
-
     createNote: builder.mutation({
-      query: (noteData) => ({
+      query: (note) => ({
         url: "/notes",
         method: "POST",
-        body: noteData,
+        body: note,
       }),
-      invalidatesTags: ["Reports"],
+      invalidatesTags: ["Notes"],
     }),
-
     updateNote: builder.mutation({
       query: ({ id, ...noteData }) => ({
         url: `/notes/${id}`,
         method: "PUT",
         body: noteData,
       }),
-      invalidatesTags: ["Reports"],
+      invalidatesTags: ["Notes"],
     }),
-
     deleteNote: builder.mutation({
       query: (id) => ({
         url: `/notes/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Reports"],
+      invalidatesTags: ["Notes"],
     }),
-
-    searchNotes: builder.query({
-      query: (searchTerm) => `/notes/search?term=${searchTerm}`,
-      providesTags: ["Reports"],
+    getUserNotes: builder.query({
+      query: (clerkUserId) => `/notes/user/${clerkUserId}`,
+      providesTags: ["Notes"],
     }),
 
     // Nouveaux endpoints pour les rapports
+    // Nouveaux endpoints pour les rapports - remplacer les anciens
     getProjectStats: builder.query({
       query: (projectId) => `/projects/${projectId}/stats`,
       providesTags: (result, error, id) => [
@@ -418,17 +437,11 @@ export const api = createApi({
       providesTags: ["ProjectStats", "Projects"],
     }),
 
-    getProjectReports: builder.query({
-      query: (projectId) => `/projects/${projectId}/reports`,
-      providesTags: (result, error, id) => [
-        { type: "Reports", id },
-        { type: "Projects", id },
-      ],
-    }),
-
     generateProjectReport: builder.mutation({
       query: ({ projectId, reportData }) => ({
-        url: projectId ? `/projects/${projectId}/reports` : "/projects/reports",
+        url: projectId
+          ? `/projects/${projectId}/reports/generate`
+          : "/projects/reports/generate",
         method: "POST",
         body: reportData,
       }),
@@ -518,6 +531,7 @@ export const api = createApi({
       invalidatesTags: (result, error, { id }) => [
         { type: "Projects", id },
         { type: "Teams" },
+        { type: "Notifications" },
       ],
     }),
 
@@ -534,6 +548,83 @@ export const api = createApi({
       invalidatesTags: (result, error, { projectId }) => [
         { type: "Projects", id: projectId },
         { type: "Teams" },
+        { type: "Notifications" },
+      ],
+    }),
+
+    // Ajouter ce nouvel endpoint dans la section endpoints du createApi
+    getRecentActivities: builder.query<any, void>({
+      query: () => `/activities/recent`,
+      providesTags: ["Projects", "Tasks"],
+    }),
+
+    // Ajouter après getRecentActivities
+    getPendingProjects: builder.query<any, void>({
+      query: () => `/admin/projects/pending`,
+      providesTags: ["Projects"],
+    }),
+
+    approveProject: builder.mutation<any, number>({
+      query: (projectId) => ({
+        url: `/admin/projects/${projectId}/approve`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Projects"],
+    }),
+
+    rejectProject: builder.mutation<any, number>({
+      query: (projectId) => ({
+        url: `/admin/projects/${projectId}/reject`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Projects"],
+    }),
+
+    // Nouveaux endpoints pour les notifications
+    getUserNotifications: builder.query<any, void>({
+      query: () => `/notifications`,
+      providesTags: ["Notifications"],
+    }),
+
+    markNotificationAsRead: builder.mutation<any, number>({
+      query: (id) => ({
+        url: `/notifications/${id}/read`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+
+    markAllNotificationsAsRead: builder.mutation<any, void>({
+      query: () => ({
+        url: `/notifications/read-all`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+
+    deleteNotification: builder.mutation<any, number>({
+      query: (id) => ({
+        url: `/notifications/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+    // Ajouter ces nouveaux endpoints dans la section endpoints du createApi
+    getProjectStatsByMonth: builder.query<any, void>({
+      query: () => `/projects/stats/monthly`,
+      providesTags: ["Projects", "ProjectStats"],
+    }),
+
+    getUserDetailsById: builder.query<any, number>({
+      query: (userId) => `/users/${userId}/details`,
+      providesTags: ["User"],
+    }),
+    // Ajouter ce nouvel endpoint dans la section endpoints du createApi
+    getProjectTaskAnalysis: builder.query<any, number>({
+      query: (id: number) => `/projects/${id}/task-analysis`,
+      providesTags: (result, error, id) => [
+        { type: "Projects", id },
+        { type: "Tasks", id },
       ],
     }),
   }),
@@ -582,16 +673,14 @@ export const {
   useExportTeamMembersQuery,
 
   // Nouveaux hooks pour les notes
-  useGetUserNotesQuery,
+  useGetNotesQuery,
   useCreateNoteMutation,
   useUpdateNoteMutation,
   useDeleteNoteMutation,
-  useSearchNotesQuery,
-
+  useGetUserNotesQuery,
   // Nouveaux hooks pour les rapports
   useGetProjectStatsQuery,
   useGetAllProjectsStatsQuery,
-  useGetProjectReportsQuery,
   useGenerateProjectReportMutation,
   useScheduleProjectReportMutation,
   useGetReportHistoryQuery,
@@ -600,6 +689,7 @@ export const {
   useGetTeamMemberPerformanceQuery,
   useGetReportDashboardQuery,
   useGetDashboardDataQuery,
+
   // Add this to the export section at the bottom of the file
   useGetProjectLifecycleQuery,
   useGetProjectHistoryQuery,
@@ -619,4 +709,20 @@ export const {
   useGetPendingInvitationsQuery,
   useCancelInvitationMutation,
   useDeleteColumnMutation,
+  // Puis ajouter ce hook à la liste des exports en bas du fichier:
+  useGetRecentActivitiesQuery,
+  // Nouveaux hooks pour les notifications
+  useGetUserNotificationsQuery,
+  useMarkNotificationAsReadMutation,
+  useMarkAllNotificationsAsReadMutation,
+  useDeleteNotificationMutation,
+  // Ajouter ces exports à la fin du fichier
+  useGetProjectStatsByMonthQuery,
+  useGetUserDetailsByIdQuery,
+  // Ajouter ces exports à la fin du fichier
+  useGetPendingProjectsQuery,
+  useApproveProjectMutation,
+  useRejectProjectMutation,
+  // Ajouter ce hook à la liste des exports en bas du fichier
+  useGetProjectTaskAnalysisQuery,
 } = api;

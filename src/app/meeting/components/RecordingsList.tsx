@@ -1,49 +1,55 @@
+"use client";
+
 import { useUser } from "@clerk/nextjs";
 import useStreamCall from "../hooks/useStreamCall";
-import useLoadRecordings from "../hooks/UseLoadRecordings"
+import useLoadRecordings from "../hooks/UseLoadRecordings";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export default function RecordingsList () {
+export default function RecordingsList() {
+  const call = useStreamCall();
 
-    const call = useStreamCall();
+  const { recordings, recordingsLoading } = useLoadRecordings(call);
 
-    const { recordings, recordingsLoading } = useLoadRecordings(call);
+  const { user, isLoaded: userLoaded } = useUser();
 
-    const { user, isLoaded: userLoaded } =useUser();
-
-    if(userLoaded && !user) {
-        return (
-            <p className="text-center">You must be logged in to view recordings.</p>
-        );
-    }
-
-    if (recordingsLoading) return <Loader2 className="mx-auto animate-spin" />
-
+  if (userLoaded && !user) {
     return (
-        <div className="space-y-3 text-center">
-            {recordings.length === 0 && <p>No recordings for this meeting.</p>}
-            <ul className="list-inside list-disc">
-                {recordings
-                    .sort((a,b) => b.end_time.localeCompare(a.end_time))
-                    .map((recording) => (
-                        <li key={recording.url}>
-                            <Link 
-                                href={recording.url}
-                                target="_blank"
-                                className="hover:underline"
-                            >
-                                {new Date(recording.end_time).toLocaleString()}
-                            </Link>
-                        </li>
-                    ))
-                }
-            </ul>
-            <p className="text-sm tex-gray-500">
-                Note: It can take up to 1 minute before new recordings show up.
-                <br />
-                You can refresh the page to see if new recordings are available.
-            </p>
-        </div>
+      <p className="text-center">
+        Vous devez être connecté pour voir les enregistrements.
+      </p>
     );
+  }
+
+  if (recordingsLoading) return <Loader2 className="mx-auto animate-spin" />;
+
+  return (
+    <div className="space-y-3 text-center">
+      {recordings.length === 0 && (
+        <p>Aucun enregistrement pour cette réunion.</p>
+      )}
+      <ul className="list-inside list-disc">
+        {recordings
+          .sort((a, b) => b.end_time.localeCompare(a.end_time))
+          .map((recording) => (
+            <li key={recording.url}>
+              <Link
+                href={recording.url}
+                target="_blank"
+                className="hover:underline"
+              >
+                {new Date(recording.end_time).toLocaleString()}
+              </Link>
+            </li>
+          ))}
+      </ul>
+      <p className="tex-gray-500 text-sm">
+        Remarque : Il peut s'écouler jusqu'à 1 minute avant que les nouveaux
+        enregistrements n'apparaissent.
+        <br />
+        Vous pouvez actualiser la page pour voir si de nouveaux enregistrements
+        sont disponibles.
+      </p>
+    </div>
+  );
 }
