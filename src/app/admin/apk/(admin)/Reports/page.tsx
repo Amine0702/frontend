@@ -35,22 +35,6 @@ import {
   SelectValue,
 } from "@/app/(components)/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/app/(components)/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/app/(components)/ui/dialog";
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -67,10 +51,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
 import {
   useGetProjectStatsQuery,
   useGetAllProjectsStatsQuery,
-  useGetReportHistoryQuery,
   useGenerateProjectReportMutation,
-  useScheduleProjectReportMutation,
 } from "@/app/state/api";
+import jsPDF from "jspdf";
 
 // Fonction de débogage pour vérifier les données
 const debugData = (data: any, label: string) => {
@@ -155,38 +138,12 @@ interface PerformanceDataItem {
   precedent: number;
 }
 
-interface ProjectData {
-  project: Project;
-  stats: ProjectStats;
-  team: TeamMember[];
-}
-
-interface AllProjectsData {
-  projects: Project[];
-  summary?: {
-    totalProjects: number;
-    completedProjects: number;
-    inProgressProjects: number;
-    totalTasks: number;
-    totalCompletedTasks: number;
-  };
-}
-
-interface Report {
-  id: string | number;
-  name: string;
-  created_at: string;
-  project_id?: string | number;
-}
-
 const AutomatedReport = () => {
   // États de configuration
   const [project, setProject] = useState<string>("all");
   const [period, setPeriod] = useState<string>("month");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [reportGenerated, setReportGenerated] = useState<boolean>(false);
-  const [showScheduleDialog, setShowScheduleDialog] = useState<boolean>(false);
-  const [scheduleDate, setScheduleDate] = useState<string>("");
   const [generatedReportData, setGeneratedReportData] = useState<any>(null);
   const { toast } = useToast();
 
@@ -205,15 +162,9 @@ const AutomatedReport = () => {
     skip: project === "all",
   });
 
-  // Récupérer l'historique des rapports
-  const { data: reportHistory, isLoading: isLoadingHistory } =
-    useGetReportHistoryQuery({});
-
   // Mutations pour générer et planifier des rapports
   const [generateReport, { isLoading: isGeneratingReport }] =
     useGenerateProjectReportMutation();
-  const [scheduleReport, { isLoading: isSchedulingReport }] =
-    useScheduleProjectReportMutation();
 
   // Gestionnaire appelé lors du clic sur le bouton de génération
   const handleGenerate = async (
@@ -253,149 +204,130 @@ const AutomatedReport = () => {
     }
   };
 
-  const handlePlanifier = () => setShowScheduleDialog(true);
-
-  const handleConfirmSchedule = async () => {
-    if (!scheduleDate) return;
-
-    try {
-      // Planifier le rapport via l'API
-      const response = await scheduleReport({
-        projectId: project !== "all" ? project : undefined,
-        scheduleData: {
-          scheduledDate: scheduleDate,
-          period: period,
-          includeAllProjects: project === "all",
-        },
-      }).unwrap();
-
-      if (response.success) {
-        toast({
-          title: "Rapport planifié",
-          description: `Le rapport détaillé est planifié pour le ${new Date(scheduleDate).toLocaleString()}`,
-          variant: "default",
-        });
-        setShowScheduleDialog(false);
-        setScheduleDate("");
-      }
-    } catch (error) {
-      console.error("Erreur lors de la planification:", error);
-      toast({
-        title: "Erreur lors de la planification",
-        description: "Une erreur s'est produite. Veuillez réessayer.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleDownload = (reportId?: string | number) => {
-    let reportTitle = "";
-    let reportContent = "";
+    let dataToUse = generatedReportData || projectData;
 
-    // Utiliser les données générées ou les données existantes
-    const dataToUse =
-      generatedReportData ||
-      (project === "all" ? allProjectsData : projectData);
+    // Si c'est un rapport de l'historique, essayer de récupérer les données du projet associé
 
     if (!dataToUse) {
       toast({
         title: "Aucune donnée disponible",
-        description: "Veuillez d'abord générer un rapport",
+        description: "Impossible de générer le rapport PDF",
         variant: "destructive",
       });
       return;
     }
 
-    reportTitle = project === "all" ? "Tous les projets" : getProjectName();
-    reportContent = `RAPPORT DÉTAILLÉ: ${reportTitle}\n\n`;
-    reportContent += `Période: ${getPeriodspan()}\n`;
-    reportContent += `Généré le: ${new Date().toLocaleString("fr-FR")}\n\n`;
+    try {
+      const pdf = new jsPDF();
+      let yPosition = 20;
 
-    // Ajouter le contenu du rapport
-    if (project === "all") {
-      const projects = dataToUse.projects || [];
-      const summary = dataToUse.summary;
+      // Titre du rapport
+      pdf.setFontSize(20);
+      pdf.setFont("helvetica", "bold");
 
-      if (summary) {
-        reportContent += `RÉSUMÉ GÉNÉRAL:\n`;
-        reportContent += `Total des projets: ${summary.totalProjects}\n`;
-        reportContent += `Projets terminés: ${summary.completedProjects}\n`;
-        reportContent += `Projets en cours: ${summary.inProgressProjects}\n`;
-        reportContent += `Total des tâches: ${summary.totalTasks}\n`;
-        reportContent += `Tâches terminées: ${summary.totalCompletedTasks}\n\n`;
-      }
+      const reportTitle = reportId
+        ? `RAPPORT HISTORIQUE: ${dataToUse.project.name}`
+        : `RAPPORT DÉTAILLÉ: ${getProjectName()}`;
 
-      projects.forEach((proj: Project) => {
-        reportContent += `PROJET: ${proj.name}\n`;
-        reportContent += `Description: ${proj.description || "N/A"}\n`;
-        reportContent += `Statut: ${getStatusText(proj.status || (proj.progress === 100 ? "completed" : "in-progress"))}\n`;
-        reportContent += `Période: ${formatDate(proj.start_date)} - ${formatDate(proj.end_date)}\n`;
-        reportContent += `Progression: ${proj.progress || 0}%\n`;
-        reportContent += `Équipe: ${proj.team || 0} membres\n`;
-        reportContent += `Tâches: ${proj.completedTasks || 0}/${proj.totalTasks || 0}\n\n`;
-      });
-    } else {
-      // Rapport pour un projet spécifique
+      pdf.text(reportTitle, 20, yPosition);
+      yPosition += 15;
+
+      // Informations générales
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+
+      pdf.text(
+        `Téléchargé le: ${new Date().toLocaleString("fr-FR")}`,
+        20,
+        yPosition,
+      );
+      yPosition += 15;
+
+      // Informations du projet
       const project = dataToUse.project;
       const stats = dataToUse.stats;
-      const team = dataToUse.team || [];
 
-      reportContent += `PROJET: ${project.name}\n`;
-      reportContent += `Description: ${project.description || "N/A"}\n`;
-      reportContent += `Statut: ${getStatusText(project.status || (stats.completionRate === 100 ? "completed" : "in-progress"))}\n`;
-      reportContent += `Période: ${formatDate(project.start_date)} - ${formatDate(project.end_date)}\n`;
-      reportContent += `Progression: ${stats.completionRate}%\n\n`;
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("INFORMATIONS DU PROJET", 20, yPosition);
+      yPosition += 10;
 
-      reportContent += `STATISTIQUES:\n`;
-      reportContent += `Total des tâches: ${stats.totalTasks}\n`;
-      reportContent += `Tâches terminées: ${stats.completedTasks}\n`;
-      reportContent += `Taux de complétion: ${stats.completionRate}%\n\n`;
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Nom: ${project.name}`, 20, yPosition);
+      yPosition += 8;
+      pdf.text(`Description: ${project.description || "N/A"}`, 20, yPosition);
+      yPosition += 8;
+      pdf.text(
+        `Statut: ${getStatusText(stats.completionRate === 100 ? "completed" : "in-progress")}`,
+        20,
+        yPosition,
+      );
+      yPosition += 8;
 
-      // Ajouter les statuts dynamiques (noms des colonnes)
-      if (stats.tasksByStatus) {
-        reportContent += `RÉPARTITION PAR STATUT (COLONNES):\n`;
-        Object.entries(stats.tasksByStatus).forEach(([status, count]) => {
-          reportContent += `- ${status}: ${count} tâches\n`;
-        });
-        reportContent += `\n`;
+      if (project.start_date && project.end_date) {
+        pdf.text(
+          `Période: ${formatDate(project.start_date)} - ${formatDate(project.end_date)}`,
+          20,
+          yPosition,
+        );
+        yPosition += 8;
       }
 
+      pdf.text(`Progression: ${stats.completionRate}%`, 20, yPosition);
+      yPosition += 15;
+
+      // Statistiques
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("STATISTIQUES", 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Total des tâches: ${stats.totalTasks}`, 20, yPosition);
+      yPosition += 8;
+      pdf.text(`Tâches terminées: ${stats.completedTasks}`, 20, yPosition);
+      yPosition += 8;
+      pdf.text(`Taux de complétion: ${stats.completionRate}%`, 20, yPosition);
+      yPosition += 15;
+
+      // Chef de projet
       if (project.manager) {
-        reportContent += `CHEF DE PROJET:\n`;
-        reportContent += `Nom: ${project.manager.name}\n`;
-        reportContent += `Email: ${project.manager.email || "N/A"}\n\n`;
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("CHEF DE PROJET", 20, yPosition);
+        yPosition += 10;
+
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Nom: ${project.manager.name}`, 20, yPosition);
+        yPosition += 8;
+        pdf.text(`Email: ${project.manager.email || "N/A"}`, 20, yPosition);
+        yPosition += 15;
       }
 
-      if (team.length > 0) {
-        reportContent += `ÉQUIPE (${team.length} membres):\n`;
-        team.forEach((member: TeamMember) => {
-          reportContent += `- ${member.name}, ${member.role || "Membre"}\n`;
-          if (member.tasks && member.tasks.length > 0) {
-            reportContent += `  Tâches assignées: ${member.tasks.length}\n`;
-            member.tasks.forEach((task: Task) => {
-              reportContent += `  * ${task.name} (${task.status}, ${task.progress}%)\n`;
-            });
-          }
-          reportContent += `\n`;
-        });
-      }
+      // Sauvegarder le PDF
+      const fileName = reportId
+        ? `rapport-historique-${project.name.toLowerCase().replace(/\s+/g, "-")}.pdf`
+        : `rapport-detaille-${getProjectName().toLowerCase().replace(/\s+/g, "-")}.pdf`;
+
+      pdf.save(fileName);
+
+      toast({
+        title: "Téléchargement démarré",
+        description: `Votre rapport PDF est en cours de téléchargement`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erreur lors de la génération du PDF:", error);
+      toast({
+        title: "Erreur de téléchargement",
+        description: "Une erreur s'est produite lors de la génération du PDF",
+        variant: "destructive",
+      });
     }
-
-    const blob = new Blob([reportContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `rapport-detaille-${reportTitle.toLowerCase().replace(/\s+/g, "-")}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Téléchargement démarré",
-      description: "Votre rapport détaillé est en cours de téléchargement",
-      variant: "default",
-    });
   };
 
   // Fonction pour obtenir le nom du projet sélectionné
@@ -682,26 +614,12 @@ const AutomatedReport = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePlanifier}
-                      className="border-indigo-200 text-black hover:bg-indigo-50 dark:border-indigo-700 dark:text-white dark:hover:bg-indigo-900"
-                      disabled={isSchedulingReport}
-                    >
-                      {isSchedulingReport ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Calendar className="mr-2 h-4 w-4 text-black dark:text-white" />
-                      )}{" "}
-                      Planifier
-                    </Button>
-                    <Button
                       size="sm"
                       onClick={() => handleDownload()}
                       className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:bg-indigo-600"
                     >
                       <Download className="mr-2 h-4 w-4 text-white" />{" "}
-                      Télécharger
+                      Télécharger PDF
                     </Button>
                   </div>
                 </CardHeader>
@@ -1361,77 +1279,151 @@ const AutomatedReport = () => {
                         )}
 
                       {/* Tendances de performance */}
-                      {displayData.stats?.performanceData &&
-                        displayData.stats.performanceData.length > 0 && (
-                          <Card className="overflow-hidden border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-700">
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2 text-black dark:text-white">
-                                <TrendingUp className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
-                                Tendances de performance
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="flex h-64 items-center justify-center">
-                                <div className="w-full space-y-4">
-                                  <div className="mb-2 flex items-center justify-between">
-                                    <h4 className="text-sm font-medium text-black dark:text-white">
-                                      Tâches complétées par mois
-                                    </h4>
-                                  </div>
-                                  <div className="relative h-40">
-                                    <div className="absolute inset-0 flex items-end justify-between px-2">
-                                      {displayData.stats.performanceData.map(
-                                        (
-                                          item: PerformanceDataItem,
-                                          index: number,
-                                        ) => (
+                      {displayData.stats?.tasksByStatus && (
+                        <Card className="overflow-hidden border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md dark:border-gray-700">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-black dark:text-white">
+                              <TrendingUp className="h-5 w-5 text-indigo-500 dark:text-indigo-400" />
+                              Évolution des tâches par statut
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-6">
+                              {/* Graphique en barres pour les statuts */}
+                              <div className="relative h-64">
+                                <div className="absolute inset-0 flex items-end justify-between px-4">
+                                  {Object.entries(
+                                    displayData.stats.tasksByStatus,
+                                  ).map(([status, count], index) => {
+                                    const taskCount = Number(count) || 0;
+                                    const allCounts = Object.values(
+                                      displayData.stats.tasksByStatus,
+                                    ).map((c) => Number(c) || 0);
+                                    const maxCount = Math.max(...allCounts, 1); // Éviter la division par zéro
+                                    const height =
+                                      maxCount > 0
+                                        ? (taskCount / maxCount) * 200
+                                        : 10;
+
+                                    return (
+                                      <div
+                                        key={status}
+                                        className="flex flex-col items-center"
+                                        style={{
+                                          width: `${100 / Object.keys(displayData.stats.tasksByStatus).length - 2}%`,
+                                        }}
+                                      >
+                                        <div className="flex flex-col items-center">
+                                          <span className="mb-2 text-sm font-medium text-black dark:text-white">
+                                            {taskCount}
+                                          </span>
                                           <div
-                                            key={index}
-                                            className="flex flex-col items-center"
-                                          >
-                                            <div className="relative flex w-12 justify-center">
-                                              <div
-                                                className="performance-bar w-8"
-                                                style={{
-                                                  height: `${Math.max((item.actuel / 10) * 100, 10)}px`,
-                                                }}
-                                              ></div>
-                                              <div
-                                                className="performance-bar-previous absolute left-1 w-8"
-                                                style={{
-                                                  height: `${Math.max((item.precedent / 10) * 100, 10)}px`,
-                                                  opacity: 0.7,
-                                                  zIndex: -1,
-                                                }}
-                                              ></div>
-                                            </div>
-                                            <span className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                                              {item.name}
-                                            </span>
-                                          </div>
-                                        ),
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex justify-center gap-6">
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-3 w-3 rounded-full bg-indigo-500"></div>
-                                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                                        Actuel
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600"></div>
-                                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                                        Précédent
-                                      </span>
-                                    </div>
-                                  </div>
+                                            className={`w-full rounded-t-lg transition-all duration-500 ${
+                                              status
+                                                .toLowerCase()
+                                                .includes("terminé") ||
+                                              status
+                                                .toLowerCase()
+                                                .includes("done")
+                                                ? "bg-green-500"
+                                                : status
+                                                      .toLowerCase()
+                                                      .includes("cours") ||
+                                                    status
+                                                      .toLowerCase()
+                                                      .includes("progress")
+                                                  ? "bg-blue-500"
+                                                  : status
+                                                        .toLowerCase()
+                                                        .includes("révision") ||
+                                                      status
+                                                        .toLowerCase()
+                                                        .includes("review")
+                                                    ? "bg-yellow-500"
+                                                    : "bg-purple-500"
+                                            }`}
+                                            style={{
+                                              height: `${height}px`,
+                                              minHeight: "20px",
+                                            }}
+                                          />
+                                        </div>
+                                        <span className="mt-2 break-words text-center text-xs text-gray-600 dark:text-gray-400">
+                                          {status}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        )}
+
+                              {/* Légende */}
+                              <div className="flex flex-wrap justify-center gap-4">
+                                {Object.entries(
+                                  displayData.stats.tasksByStatus,
+                                ).map(([status, count]) => {
+                                  const taskCount = Number(count) || 0;
+                                  return (
+                                    <div
+                                      key={status}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <div
+                                        className={`h-3 w-3 rounded-full ${
+                                          status
+                                            .toLowerCase()
+                                            .includes("terminé") ||
+                                          status.toLowerCase().includes("done")
+                                            ? "bg-green-500"
+                                            : status
+                                                  .toLowerCase()
+                                                  .includes("cours") ||
+                                                status
+                                                  .toLowerCase()
+                                                  .includes("progress")
+                                              ? "bg-blue-500"
+                                              : status
+                                                    .toLowerCase()
+                                                    .includes("révision") ||
+                                                  status
+                                                    .toLowerCase()
+                                                    .includes("review")
+                                                ? "bg-yellow-500"
+                                                : "bg-purple-500"
+                                        }`}
+                                      />
+                                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                                        {status} ({taskCount})
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Statistiques supplémentaires */}
+                              <div className="grid grid-cols-2 gap-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+                                <div className="text-center">
+                                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                    {displayData.stats.completionRate}%
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Taux de complétion
+                                  </p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                    {displayData.stats.totalTasks -
+                                      displayData.stats.completedTasks}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Tâches restantes
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
@@ -1466,122 +1458,6 @@ const AutomatedReport = () => {
             )}
           </div>
         </div>
-
-        {/* Dialog de planification */}
-        <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-black dark:text-white">
-                Planifier le rapport
-              </DialogTitle>
-              <DialogDescription className="text-black dark:text-white">
-                Choisissez quand vous souhaitez recevoir ce rapport détaillé
-                automatiquement
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-black dark:text-white">
-                  Sélectionnez la date et l'heure :
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduleDate}
-                  onChange={(e) => setScheduleDate(e.target.value)}
-                  className="w-full rounded border p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowScheduleDialog(false)}
-                className="text-black dark:text-white"
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={handleConfirmSchedule}
-                disabled={!scheduleDate || isSchedulingReport}
-                className="bg-indigo-500 text-white hover:bg-indigo-600"
-              >
-                {isSchedulingReport ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                    Planification...
-                  </span>
-                ) : (
-                  "Planifier"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Sheet pour l'historique des rapports */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              className="ml-auto flex gap-2 border-indigo-200 text-black hover:bg-indigo-50 dark:border-indigo-700 dark:text-white dark:hover:bg-indigo-900"
-            >
-              <Briefcase className="h-4 w-4 text-black dark:text-white" />{" "}
-              Rapports précédents
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle className="text-black dark:text-white">
-                Historique des rapports
-              </SheetTitle>
-              <SheetDescription className="text-black dark:text-white">
-                Liste des derniers rapports détaillés générés pour vos projets
-              </SheetDescription>
-            </SheetHeader>
-            <div className="space-y-4 py-6">
-              {isLoadingHistory ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                </div>
-              ) : reportHistory && reportHistory.length > 0 ? (
-                reportHistory.map((report: Report) => (
-                  <Card
-                    key={report.id}
-                    className="border border-gray-200 transition-all hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-indigo-900"
-                  >
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div>
-                        <h4 className="font-medium text-black dark:text-white">
-                          {report.name}
-                        </h4>
-                        <p className="text-xs text-black dark:text-white">
-                          Généré le{" "}
-                          {new Date(report.created_at).toLocaleDateString(
-                            "fr-FR",
-                          )}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDownload(report.id)}
-                        className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-200"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="py-8 text-center">
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Aucun rapport dans l'historique
-                  </p>
-                </div>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
     </div>
   );

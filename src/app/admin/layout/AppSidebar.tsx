@@ -128,10 +128,7 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
 
-  const renderMenuItems = (
-    navItems: NavItem[],
-    menuType: "main" | "others",
-  ) => (
+  const renderMenuItems = (navItems: NavItem[], menuType: "main") => (
     <ul className="flex flex-col gap-4">
       {navItems.map((nav, index) => (
         <li key={nav.name}>
@@ -354,12 +351,7 @@ const AppSidebar: React.FC = () => {
               />
             </>
           ) : (
-            <Image
-              src="/img/logo/favicon.ico"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+            <Image src="/img/logo/icon.png" alt="Logo" width={63} height={32} />
           )}
         </Link>
       </div>
@@ -381,23 +373,6 @@ const AppSidebar: React.FC = () => {
                 )}
               </h2>
               {renderMenuItems(navItems, "main")}
-            </div>
-
-            <div className="">
-              <h2
-                className={`mb-4 flex text-xs uppercase leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
             </div>
           </div>
         </nav>

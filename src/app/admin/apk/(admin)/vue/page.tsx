@@ -1734,27 +1734,13 @@ export default function GlobalDashboard() {
                       <Line
                         type="monotone"
                         dataKey="nouveaux"
-                        name="Nouveaux projets"
+                        name=" projets"
                         stroke={colors.primary}
                         strokeWidth={3}
                         dot={{ fill: colors.primary, strokeWidth: 2, r: 4 }}
                         activeDot={{
                           r: 8,
                           fill: colors.primary,
-                          stroke: "white",
-                          strokeWidth: 2,
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="terminés"
-                        name="Projets terminés"
-                        stroke={colors.secondary}
-                        strokeWidth={3}
-                        dot={{ fill: colors.secondary, strokeWidth: 2, r: 4 }}
-                        activeDot={{
-                          r: 8,
-                          fill: colors.secondary,
                           stroke: "white",
                           strokeWidth: 2,
                         }}

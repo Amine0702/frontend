@@ -242,7 +242,7 @@ const Statistics = ({ tasks }: { tasks: Task[] }) => {
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatsCard
-        title="Retard moyen prédit (tâches actives)"
+        title="Retard moyen  (tâches actives)"
         value={`${averageDelay} j`}
         icon={
           <ExclamationTriangleIcon
@@ -251,20 +251,6 @@ const Statistics = ({ tasks }: { tasks: Task[] }) => {
           />
         }
         bgClass="bg-orange-100"
-      />
-      <StatsCard
-        title="Précision du modèle"
-        value={`${averageConfidence}%`}
-        icon={
-          <ChartBarIcon className="h-6 w-6" style={{ color: accentGreen }} />
-        }
-        bgClass="bg-green-100"
-      />
-      <StatsCard
-        title="Temps économisé"
-        value={timeSaved}
-        icon={<ClockIcon className="h-6 w-6" style={{ color: accentYellow }} />}
-        bgClass="bg-yellow-100"
       />
     </div>
   );

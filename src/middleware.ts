@@ -1,29 +1,39 @@
+// middleware.ts
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
+// Define protected routes (matcher expects NextRequest)
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
-  "/calendar(.*)",
+  "/notes(.*)",
   "/projects(.*)",
   "/home(.*)",
   "/meeting(.*)",
-  "/team(.*)",
-  "/priority(.*)",
+  "/teams(.*)",
+  "/rapport(.*)",
+  "/profile(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  const authData = await auth(); // Await the auth() function
+// Clerk middleware: handler receives (auth, req)
+export default clerkMiddleware(async (auth, req: NextRequest) => {
+  // Invoke auth() to get user data and redirect helper
+  const { userId, redirectToSignIn } = await auth();
 
-  if (!authData.userId && isProtectedRoute(req)) {
-    return authData.redirectToSignIn();
+  // If user is not authenticated and path is protected, redirect
+  if (!userId && isProtectedRoute(req)) {
+    return redirectToSignIn();
   }
+
+  // Otherwise, continue processing
+  return NextResponse.next();
 });
 
-export const config: { matcher: string[] } = {
+// Apply middleware to specific paths (protected routes, API, excluding static)
+export const config = {
   matcher: [
-    "/admin/:path",
-    // Skip Next.js internals and all static files, unless found in search params
+    "/admin/:path*",
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
     "/(api|trpc)(.*)",
   ],
 };

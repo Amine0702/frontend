@@ -6,13 +6,13 @@
 
 @layer base {
   body {
-    @apply relative text-base font-normal z-1 bg-gray-50 font-outfit;
+    @apply relative z-1 bg-gray-50 font-outfit text-base font-normal;
   }
 }
 
 @layer components {
   .menu-item {
-    @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
+    @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium;
   }
   .menu-item-active {
     @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
@@ -81,7 +81,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full dark:bg-gray-700;
+    @apply rounded-full bg-gray-200 dark:bg-gray-700;
   }
   /* For Remove Date Icon */
   input[type="date"]::-webkit-inner-spin-button,
@@ -133,7 +133,7 @@
 }
 
 .fc .fc-view-harness {
-  @apply max-w-full overflow-x-auto custom-scrollbar;
+  @apply custom-scrollbar max-w-full overflow-x-auto;
 }
 .fc-dayGridMonth-view.fc-view.fc-daygrid {
   @apply min-w-[718px];
@@ -156,11 +156,11 @@
 }
 
 .fc-button-group .fc-button.fc-prev-button:before {
-  @apply inline-block mt-1;
+  @apply mt-1 inline-block;
   content: url("data:image/svg+xml,%3Csvg width='25' height='24' viewBox='0 0 25 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M16.0068 6L9.75684 12.25L16.0068 18.5' stroke='%23344054' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E%0A");
 }
 .fc-button-group .fc-button.fc-next-button:before {
-  @apply inline-block mt-1;
+  @apply mt-1 inline-block;
   content: url("data:image/svg+xml,%3Csvg width='25' height='24' viewBox='0 0 25 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M9.50684 19L15.7568 12.75L9.50684 6.5' stroke='%23344054' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E%0A");
 }
 .dark .fc-button-group .fc-button.fc-prev-button:before {
@@ -187,7 +187,7 @@
 .fc-header-toolbar.fc-toolbar
   .fc-toolbar-chunk:last-child
   .fc-button.fc-button-active {
-  @apply text-gray-900 bg-white dark:bg-gray-800 dark:text-white;
+  @apply bg-white text-gray-900 dark:bg-gray-800 dark:text-white;
 }
 .fc-theme-standard th {
   @apply !border-x-0 border-t !border-gray-200 bg-gray-50 !text-left dark:!border-gray-800 dark:bg-gray-900;
@@ -227,7 +227,7 @@
   @apply p-0 text-sm font-normal text-gray-700;
 }
 .fc-daygrid-event-dot {
-  @apply w-1 h-5 ml-0 mr-3 border-none rounded;
+  @apply ml-0 mr-3 h-5 w-1 rounded border-none;
 }
 .fc-event {
   @apply focus:shadow-none;
@@ -287,7 +287,7 @@
 
 .stocks-slider-outer .swiper-button-next,
 .stocks-slider-outer .swiper-button-prev {
-  @apply !static mt-0 h-8 w-9 rounded-full border dark:hover:bg-white/[0.05] border-gray-200 !text-gray-700 transition hover:bg-gray-100 dark:border-white/[0.03] dark:bg-gray-800 dark:!text-gray-400  dark:hover:!text-white/90;
+  @apply !static mt-0 h-8 w-9 rounded-full border border-gray-200 !text-gray-700 transition hover:bg-gray-100 dark:border-white/[0.03] dark:bg-gray-800 dark:!text-gray-400 dark:hover:bg-white/[0.05] dark:hover:!text-white/90;
 }
 
 .stocks-slider-outer .swiper-button-next.swiper-button-disabled,
@@ -359,7 +359,7 @@
   @apply !stroke-gray-200 dark:!stroke-gray-800;
 }
 .jvectormap-tip {
-  @apply !bg-brand-500 !border-none !px-2 !py-1;
+  @apply !border-none !bg-brand-500 !px-2 !py-1;
 }
 .jvectormap-zoomin,
 .jvectormap-zoomout {
@@ -371,7 +371,7 @@
 }
 
 .taskCheckbox:checked ~ .box span {
-  @apply opacity-100 bg-brand-500;
+  @apply bg-brand-500 opacity-100;
 }
 .taskCheckbox:checked ~ p {
   @apply text-gray-400 line-through;
@@ -386,19 +386,16 @@
 
 .task {
   border-radius: 0.75rem;
-  box-shadow: 0px 1px 3px 0px rgba(16, 24, 40, 0.1),
+  box-shadow:
+    0px 1px 3px 0px rgba(16, 24, 40, 0.1),
     0px 1px 2px 0px rgba(16, 24, 40, 0.06);
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
 }
 /* Dans ton fichier CSS global */
 
-
 /* global.css */
-.relative { 
-  position: relative !important;
-  overflow: visible !important;
-}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

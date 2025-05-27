@@ -10,7 +10,6 @@ import {
   Calendar,
   Download,
   TrendingUp,
-  Briefcase,
   Users,
   User,
   CalendarIcon,
@@ -36,22 +35,6 @@ import {
   SelectValue,
 } from "@/app/(components)/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/app/(components)/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/app/(components)/ui/dialog";
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -68,9 +51,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
 import {
   useGetProjectStatsQuery,
   useGetAllProjectsStatsQuery,
-  useGetReportHistoryQuery,
   useGenerateProjectReportMutation,
-  useScheduleProjectReportMutation,
 } from "@/app/state/api";
 
 // Fonction de débogage pour vérifier les données
@@ -157,38 +138,13 @@ interface PerformanceDataItem {
   precedent: number;
 }
 
-interface ProjectData {
-  project: Project;
-  stats: ProjectStats;
-  team: TeamMember[];
-}
-
-interface AllProjectsData {
-  projects: Project[];
-  summary?: {
-    totalProjects: number;
-    completedProjects: number;
-    inProgressProjects: number;
-    totalTasks: number;
-    totalCompletedTasks: number;
-  };
-}
-
-interface Report {
-  id: string | number;
-  name: string;
-  created_at: string;
-  project_id?: string | number;
-}
-
 const AutomatedReport = () => {
   // États de configuration
   const [project, setProject] = useState<string>("");
   const [period, setPeriod] = useState<string>("month");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [reportGenerated, setReportGenerated] = useState<boolean>(false);
-  const [showScheduleDialog, setShowScheduleDialog] = useState<boolean>(false);
-  const [scheduleDate, setScheduleDate] = useState<string>("");
+
   const [generatedReportData, setGeneratedReportData] = useState<any>(null);
   const { toast } = useToast();
 
@@ -207,15 +163,9 @@ const AutomatedReport = () => {
     skip: !project,
   });
 
-  // Récupérer l'historique des rapports
-  const { data: reportHistory, isLoading: isLoadingHistory } =
-    useGetReportHistoryQuery({});
-
   // Mutations pour générer et planifier des rapports
   const [generateReport, { isLoading: isGeneratingReport }] =
     useGenerateProjectReportMutation();
-  const [scheduleReport, { isLoading: isSchedulingReport }] =
-    useScheduleProjectReportMutation();
 
   // Sélectionner automatiquement le premier projet disponible
   useEffect(() => {
@@ -225,7 +175,7 @@ const AutomatedReport = () => {
         (proj: Project) => {
           return (
             proj.manager &&
-            proj.manager.clerk_user_id === localStorage.getItem("currentUserId")
+            proj.manager.clerk_user_id === localStorage.getItem("clerkUserId")
           );
         },
       );
@@ -274,72 +224,8 @@ const AutomatedReport = () => {
     }
   };
 
-  const handlePlanifier = () => setShowScheduleDialog(true);
-
-  const handleConfirmSchedule = async () => {
-    if (!scheduleDate) return;
-
-    try {
-      // Planifier le rapport via l'API - toujours pour un projet spécifique
-      const response = await scheduleReport({
-        projectId: project,
-        scheduleData: {
-          scheduledDate: scheduleDate,
-          period: period,
-          includeAllProjects: false,
-        },
-      }).unwrap();
-
-      if (response.success) {
-        toast({
-          title: "Rapport planifié",
-          description: `Le rapport détaillé est planifié pour le ${new Date(scheduleDate).toLocaleString()}`,
-          variant: "default",
-        });
-        setShowScheduleDialog(false);
-        setScheduleDate("");
-      }
-    } catch (error) {
-      console.error("Erreur lors de la planification:", error);
-      toast({
-        title: "Erreur lors de la planification",
-        description: "Une erreur s'est produite. Veuillez réessayer.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleDownload = (reportId?: string | number) => {
     let dataToUse = generatedReportData || projectData;
-
-    // Si c'est un rapport de l'historique, essayer de récupérer les données du projet associé
-    if (reportId && reportHistory) {
-      const historicalReport = reportHistory.find(
-        (r: Report) => r.id === reportId,
-      );
-      if (historicalReport && historicalReport.project_id) {
-        // Utiliser les données du projet associé au rapport historique
-        const associatedProject = allProjectsData?.projects?.find(
-          (proj: Project) =>
-            proj.id.toString() === historicalReport.project_id?.toString(),
-        );
-
-        if (associatedProject) {
-          // Créer un objet de données temporaire pour le rapport historique
-          dataToUse = {
-            project: associatedProject,
-            stats: {
-              totalTasks: associatedProject.totalTasks || 0,
-              completedTasks: associatedProject.completedTasks || 0,
-              completionRate: associatedProject.progress || 0,
-              tasksByStatus: {},
-              tasksByPriority: {},
-            },
-            team: [],
-          };
-        }
-      }
-    }
 
     if (!dataToUse) {
       toast({
@@ -368,23 +254,6 @@ const AutomatedReport = () => {
       // Informations générales
       pdf.setFontSize(12);
       pdf.setFont("helvetica", "normal");
-
-      if (reportId) {
-        const historicalReport = reportHistory?.find(
-          (r: Report) => r.id === reportId,
-        );
-        if (historicalReport) {
-          pdf.text(
-            `Rapport généré le: ${new Date(historicalReport.created_at).toLocaleString("fr-FR")}`,
-            20,
-            yPosition,
-          );
-          yPosition += 8;
-        }
-      } else {
-        pdf.text(`Période: ${getPeriodspan()}`, 20, yPosition);
-        yPosition += 8;
-      }
 
       pdf.text(
         `Téléchargé le: ${new Date().toLocaleString("fr-FR")}`,
@@ -502,7 +371,7 @@ const AutomatedReport = () => {
           // Vérifier si l'utilisateur connecté est le manager de ce projet
           return (
             proj.manager &&
-            proj.manager.clerk_user_id === localStorage.getItem("currentUserId")
+            proj.manager.clerk_user_id === localStorage.getItem("clerkUserId")
           );
         },
       );
@@ -781,20 +650,6 @@ const AutomatedReport = () => {
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handlePlanifier}
-                      className="border-indigo-200 text-black hover:bg-indigo-50 dark:border-indigo-700 dark:text-white dark:hover:bg-indigo-900"
-                      disabled={isSchedulingReport}
-                    >
-                      {isSchedulingReport ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Calendar className="mr-2 h-4 w-4 text-black dark:text-white" />
-                      )}{" "}
-                      Planifier
-                    </Button>
                     <Button
                       size="sm"
                       onClick={() => handleDownload()}
@@ -1436,216 +1291,6 @@ const AutomatedReport = () => {
             )}
           </div>
         </div>
-
-        {/* Dialog de planification */}
-        <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-black dark:text-white">
-                Planifier le rapport
-              </DialogTitle>
-              <DialogDescription className="text-black dark:text-white">
-                Choisissez quand vous souhaitez recevoir ce rapport détaillé
-                automatiquement
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-black dark:text-white">
-                  Sélectionnez la date et l'heure :
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduleDate}
-                  onChange={(e) => setScheduleDate(e.target.value)}
-                  className="w-full rounded border p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowScheduleDialog(false)}
-                className="text-black dark:text-white"
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={handleConfirmSchedule}
-                disabled={!scheduleDate || isSchedulingReport}
-                className="bg-indigo-500 text-white hover:bg-indigo-600"
-              >
-                {isSchedulingReport ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
-                    Planification...
-                  </span>
-                ) : (
-                  "Planifier"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Sheet pour l'historique des rapports */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              className="ml-auto flex gap-2 border-indigo-200 text-black hover:bg-indigo-50 dark:border-indigo-700 dark:text-white dark:hover:bg-indigo-900"
-            >
-              <Briefcase className="h-4 w-4 text-black dark:text-white" />{" "}
-              Historique des rapports
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle className="text-black dark:text-white">
-                Historique des rapports
-              </SheetTitle>
-              <SheetDescription className="text-black dark:text-white">
-                Liste des rapports détaillés générés pour vos projets
-              </SheetDescription>
-            </SheetHeader>
-            <div className="space-y-4 py-6">
-              {isLoadingHistory ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                </div>
-              ) : reportHistory && reportHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {reportHistory.map((report: Report) => {
-                    // Trouver le projet associé au rapport
-                    const associatedProject = allProjectsData?.projects?.find(
-                      (proj: Project) =>
-                        proj.id.toString() === report.project_id?.toString(),
-                    );
-
-                    return (
-                      <Card
-                        key={report.id}
-                        className="border border-gray-200 transition-all hover:bg-indigo-50 dark:border-gray-700 dark:hover:bg-indigo-900"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="mb-2 flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                                <h4 className="font-medium text-black dark:text-white">
-                                  {report.name ||
-                                    `Rapport - ${associatedProject?.name || "Projet"}`}
-                                </h4>
-                              </div>
-
-                              {associatedProject && (
-                                <div className="mb-2">
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Projet:{" "}
-                                  </span>
-                                  <span className="text-xs font-medium text-black dark:text-white">
-                                    {associatedProject.name}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  <span>
-                                    Généré le{" "}
-                                    {new Date(
-                                      report.created_at,
-                                    ).toLocaleDateString("fr-FR", {
-                                      day: "numeric",
-                                      month: "long",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                </div>
-
-                                {report.project_id && (
-                                  <div className="flex items-center gap-1">
-                                    <Briefcase className="h-3 w-3" />
-                                    <span>ID Projet: {report.project_id}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="ml-4 flex flex-col gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownload(report.id)}
-                                className="text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-200"
-                              >
-                                <Download className="mr-1 h-4 w-4" />
-                                PDF
-                              </Button>
-
-                              {/* Bouton pour régénérer le rapport pour ce projet */}
-                              {report.project_id && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setProject(report.project_id!.toString());
-                                    setReportGenerated(false);
-                                    setGeneratedReportData(null);
-                                    window.scrollTo({
-                                      top: 0,
-                                      behavior: "smooth",
-                                    });
-                                  }}
-                                  className="border-gray-300 text-xs text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
-                                >
-                                  <TrendingUp className="mr-1 h-3 w-3" />
-                                  Voir projet
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="py-12 text-center">
-                  <div className="mx-auto mb-4 w-fit rounded-full bg-gray-50 p-4 dark:bg-gray-800">
-                    <FileText className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <h3 className="mb-2 text-lg font-medium text-black dark:text-white">
-                    Aucun rapport dans l'historique
-                  </h3>
-                  <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                    Vous n'avez pas encore généré de rapports. Créez votre
-                    premier rapport pour le voir apparaître ici.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Fermer le sheet et scroller vers le formulaire
-                      const sheetTrigger = document.querySelector(
-                        '[data-state="open"]',
-                      ) as HTMLElement;
-                      if (sheetTrigger) sheetTrigger.click();
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Générer un rapport
-                  </Button>
-                </div>
-              )}
-            </div>
-          </SheetContent>
-        </Sheet>
       </div>
     </div>
   );
