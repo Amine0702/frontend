@@ -116,7 +116,7 @@ const Index = () => {
     const fetchPendingProjects = async () => {
       try {
         const response = await fetch(
-          "http://localhost:8000/api/admin/projects/pending",
+          "https://backend-production-96a2.up.railway.app/api/api/admin/projects/pending",
         );
         if (response.ok) {
           const data = await response.json();
@@ -228,7 +228,7 @@ const Index = () => {
           const project = allProjects[index];
           try {
             const projectDetails = await fetch(
-              `http://localhost:8000/api/projects/${project.id}`,
+              `https://backend-production-96a2.up.railway.app/api/api/projects/${project.id}`,
             ).then((res) => res.json());
 
             if (projectDetails) {

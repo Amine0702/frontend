@@ -3,7 +3,9 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api",
+    baseUrl:
+      process.env.NEXT_PUBLIC_API_URL ||
+      "https://backend-production-96a2.up.railway.app/api",
     prepareHeaders: (headers, { getState }) => {
       // Récupérer l'ID utilisateur de Clerk depuis le localStorage
       const clerkUserId = localStorage.getItem("currentUserId");
