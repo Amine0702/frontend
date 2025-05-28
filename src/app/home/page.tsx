@@ -1188,12 +1188,6 @@ const Index = () => {
                     >
                       Fermer
                     </Button>
-                    <Button
-                      className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white"
-                      onClick={() => setIsEditingTask(true)}
-                    >
-                      Modifier
-                    </Button>
                   </CardFooter>
                 </Card>
               )}
@@ -1294,9 +1288,6 @@ const Index = () => {
                       onClick={() => setSelectedProjectId(null)}
                     >
                       Retour aux projets
-                    </Button>
-                    <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
-                      Modifier
                     </Button>
                   </CardFooter>
                 </Card>

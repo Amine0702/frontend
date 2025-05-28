@@ -21,6 +21,17 @@ type SortField =
   | "dueDate";
 type SortDirection = "asc" | "desc";
 
+// Définir des types plus précis pour les valeurs possibles
+type TaskPriority = "urgente" | "haute" | "moyenne" | "basse";
+type TaskStatus =
+  | "à_faire"
+  | "en_cours"
+  | "en_révision"
+  | "terminé"
+  | "a_faire"
+  | "en_revision"
+  | "termine";
+
 const TableView: React.FC<TableViewProps> = ({ project, onTaskClick }) => {
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -50,19 +61,29 @@ const TableView: React.FC<TableViewProps> = ({ project, onTaskClick }) => {
         comparison = a.title.localeCompare(b.title);
         break;
       case "priority":
-        const priorityOrder = { urgente: 3, haute: 2, moyenne: 1, basse: 0 };
-        comparison =
-          (priorityOrder[a.priority] || 0) - (priorityOrder[b.priority] || 0);
-        break;
-      case "status":
-        const statusOrder = {
-          à_faire: 0,
-          en_cours: 1,
-          en_révision: 2,
-          terminé: 3,
+        const priorityOrder: Record<TaskPriority, number> = {
+          urgente: 3,
+          haute: 2,
+          moyenne: 1,
+          basse: 0,
         };
         comparison =
-          (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+          (priorityOrder[a.priority as TaskPriority] || 0) -
+          (priorityOrder[b.priority as TaskPriority] || 0);
+        break;
+      case "status":
+        const statusOrder: Record<TaskStatus, number> = {
+          à_faire: 0,
+          a_faire: 0,
+          en_cours: 1,
+          en_révision: 2,
+          en_revision: 2,
+          terminé: 3,
+          termine: 3,
+        };
+        comparison =
+          (statusOrder[a.status as TaskStatus] || 0) -
+          (statusOrder[b.status as TaskStatus] || 0);
         break;
       case "assignee":
         const aName = a.assigneeId
@@ -141,12 +162,15 @@ const TableView: React.FC<TableViewProps> = ({ project, onTaskClick }) => {
   const getStatusClass = (status: Task["status"]): string => {
     switch (status) {
       case "a_faire":
+      case "à_faire":
         return "bg-blue-100 text-blue-700";
       case "en_cours":
         return "bg-violet-100 text-violet-700";
       case "en_revision":
+      case "en_révision":
         return "bg-yellow-100 text-yellow-700";
       case "termine":
+      case "terminé":
         return "bg-green-100 text-green-700";
       default:
         return "bg-gray-100 text-gray-700";
@@ -157,12 +181,15 @@ const TableView: React.FC<TableViewProps> = ({ project, onTaskClick }) => {
   const formatStatus = (status: Task["status"]): string => {
     switch (status) {
       case "à_faire":
+      case "a_faire":
         return "À faire";
       case "en_cours":
         return "En cours";
       case "en_révision":
+      case "en_revision":
         return "En révision";
       case "terminé":
+      case "termine":
         return "Terminé";
       default:
         return status;

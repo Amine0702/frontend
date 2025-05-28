@@ -109,8 +109,9 @@ export default function UsersPage() {
     data: usersData,
     isLoading: isUsersLoading,
     refetch: refetchUsers,
-  } = useGetAllUsersQuery();
-  const { data: statsData, isLoading: isStatsLoading } = useGetUserStatsQuery();
+  } = useGetAllUsersQuery(undefined);
+  const { data: statsData, isLoading: isStatsLoading } =
+    useGetUserStatsQuery(undefined);
   const [updateUserRole, { isLoading: isUpdatingRole }] =
     useUpdateUserRoleMutation();
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
@@ -333,7 +334,8 @@ export default function UsersPage() {
                             className="h-10 w-10 rounded-full"
                             src={
                               user.profile_picture_url ||
-                              "/placeholder.svg?height=40&width=40"
+                              "/placeholder.svg?height=40&width=40" ||
+                              "/placeholder.svg"
                             }
                             alt={user.name}
                           />

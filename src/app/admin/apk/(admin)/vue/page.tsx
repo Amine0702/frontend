@@ -2293,7 +2293,7 @@ export default function GlobalDashboard() {
             <div className="space-y-4">
               {pendingProjectsData?.pendingProjects &&
               pendingProjectsData.pendingProjects.length > 0 ? (
-                pendingProjectsData.pendingProjects.map((project) => (
+                pendingProjectsData.pendingProjects.map((project: any) => (
                   <div
                     key={project.id}
                     className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20"
@@ -2313,7 +2313,8 @@ export default function GlobalDashboard() {
                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                           Créé par:{" "}
                           {project.team_members.find(
-                            (m) => m.clerk_user_id === project.clerk_user_id,
+                            (m: any) =>
+                              m.clerk_user_id === project.clerk_user_id,
                           )?.name || "Utilisateur inconnu"}
                         </p>
                       </div>

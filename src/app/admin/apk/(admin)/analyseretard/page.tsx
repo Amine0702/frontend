@@ -52,7 +52,7 @@ type Projet = {
 
 // Fonction pour vérifier si une tâche est terminée
 const isTaskCompleted = (status: Task["status"]) => {
-  return status === "completed" || status === "Terminé";
+  return status === "completed";
 };
 
 // Modifier le composant RiskBadge pour afficher correctement les statuts

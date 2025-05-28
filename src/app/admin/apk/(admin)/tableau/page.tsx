@@ -148,12 +148,7 @@ function RoleSelect({
 
       // Show success notification
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-green-500 dark:text-green-400" />
-            <span className="dark:text-white">Notification envoyée</span>
-          </div>
-        ),
+        title: "Notification envoyée",
         description: (
           <div className="mt-1">
             <p className="text-sm dark:text-white">

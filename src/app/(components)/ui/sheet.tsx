@@ -11,8 +11,10 @@ const SheetTrigger = SheetPrimitive.Trigger;
 
 const SheetClose = SheetPrimitive.Close;
 
-const SheetPortal = ({ className, ...props }: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Portal>) => (
-  <SheetPrimitive.Portal className={cn(className)} {...props} />
+const SheetPortal = ({
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Portal>) => (
+  <SheetPrimitive.Portal {...props} />
 );
 
 const SheetOverlay = React.forwardRef<
@@ -23,7 +25,7 @@ const SheetOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity",
-      className
+      className,
     )}
     {...props}
   />
@@ -45,13 +47,14 @@ const SheetContent = React.forwardRef<
         side === "top" && "inset-x-0 top-0 border-b",
         side === "bottom" && "inset-x-0 bottom-0 border-t",
         side === "left" && "inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-        side === "right" && "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
-        className
+        side === "right" &&
+          "inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
+        className,
       )}
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
         <X className="h-5 w-5" />
         <span className="sr-only">Fermer</span>
       </SheetPrimitive.Close>
@@ -60,14 +63,29 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
-const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
+const SheetHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-2 text-center sm:text-left",
+      className,
+    )}
+    {...props}
+  />
 );
 SheetHeader.displayName = "SheetHeader";
 
-const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+const SheetFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className,
+    )}
     {...props}
   />
 );
