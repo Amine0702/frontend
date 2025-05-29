@@ -15,13 +15,36 @@ import {
   YAxis,
 } from "recharts";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/(components)/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/app/(components)/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/app/(components)/ui/sheet";
+import { Badge } from "@/app/(components)/ui/badge";
+import TaskEditor from "@/app/(components)/TaskEditor";
+import {
   PlusSquare,
   CalendarDays,
   BarChart3,
   Clock,
   Info,
   FileText,
-  Badge,
   AlertCircle,
   ClipboardCheck,
 } from "lucide-react";
@@ -55,29 +78,6 @@ import {
   useUpdateTaskMutation,
 } from "@/app/state/api";
 import ModalNewProject from "@/app/(components)/ModalNewProject";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@radix-ui/react-dialog";
-import { DialogHeader } from "../(components)/ui/dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../(components)/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "../(components)/ui/sheet";
-import TaskEditor from "../(components)/TaskEditor";
 
 // Composant principal
 const Index = () => {
@@ -1047,7 +1047,7 @@ const Index = () => {
                           ? `Début prévu: ${formatDateFr(project.startDate)}`
                           : "Date de début: Non définie"}
                       </span>
-                      <span className="bg-vioilet-50 rounded-full px-2 py-1 text-xs text-violet-800 dark:bg-violet-900/20 dark:text-violet-100">
+                      <span className="rounded-full bg-violet-50 px-2 py-1 text-xs text-violet-800 dark:bg-violet-900/20 dark:text-violet-100">
                         En attente d'approbation
                       </span>
                     </div>
