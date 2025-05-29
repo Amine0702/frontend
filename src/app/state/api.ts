@@ -612,13 +612,13 @@ export const api = createApi({
       ],
     }),
 
-    // FIXED: Update member role endpoint with correct URL
+    // Update member role endpoint with correct URL
     updateMemberRole: builder.mutation<
-      { message: string; member?: any },
+      { message: string; member?: any; role?: string },
       { projectId: string; memberId: string; role: string }
     >({
       query: ({ projectId, memberId, role }) => ({
-        url: `/projects/${projectId}/members/${memberId}/permission`,
+        url: `/projects/${projectId}/members/${memberId}/role`,
         method: "PUT",
         body: { role },
       }),
@@ -712,6 +712,5 @@ export const {
   useApproveProjectMutation,
   useRejectProjectMutation,
   useGetProjectTaskAnalysisQuery,
-  // FIXED: Export the corrected hook
   useUpdateMemberRoleMutation,
 } = api;
