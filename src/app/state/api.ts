@@ -1,82 +1,18 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-export interface Project {
-  id: number;
-  name: string;
-  description?: string;
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface User {
-  userId?: number;
-  username: string;
-  email: string;
-  profilePictureUrl?: string;
-  cognitoId?: string;
-  teamId?: number;
-}
-
-export interface Attachment {
-  id: number;
-  fileURL: string;
-  fileName: string;
-  taskId: number;
-  uploadedById: number;
-}
-
-export interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  status?: string;
-  priority?: string;
-  tags?: string;
-  startDate?: string;
-  dueDate?: string;
-  points?: number;
-  projectId: number;
-  authorUserId?: number;
-  assignedUserId?: number;
-
-  author?: User;
-  assignee?: User;
-  comments?: Comment[];
-  attachments?: Attachment[];
-}
-
-export interface SearchResults {
-  tasks?: Task[];
-  projects?: Project[];
-  users?: User[];
-}
-
-export interface Team {
-  teamId: number;
-  teamName: string;
-  productOwnerUserId?: number;
-  projectManagerUserId?: number;
-}
-
-// Interface pour les invitations
-export interface InvitationData {
-  email: string;
-  permission: "observer" | "member" | "manager";
-}
-
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl:
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
       "https://backend-production-96a2.up.railway.app/api",
-    prepareHeaders: (headers) => {
+    prepareHeaders: (headers, { getState }) => {
       // Récupérer l'ID utilisateur de Clerk depuis le localStorage
-      const currentUserId = localStorage.getItem("currentUserId");
+      const clerkUserId = localStorage.getItem("currentUserId");
 
       // Ajouter l'ID utilisateur de Clerk aux headers
-      if (currentUserId) {
-        headers.set("X-Clerk-User-Id", currentUserId);
+      if (clerkUserId) {
+        headers.set("X-Clerk-User-Id", clerkUserId);
       }
 
       return headers;
@@ -693,44 +629,6 @@ export const api = createApi({
         { type: "Tasks", id },
       ],
     }),
-    getProjects: builder.query<Project[], void>({
-      query: () => "projects",
-      providesTags: ["Projects"],
-    }),
-    getTasks: builder.query<Task[], { projectId: number }>({
-      query: ({ projectId }) => `tasks?projectId=${projectId}`,
-      providesTags: (result) =>
-        result
-          ? result.map(({ id }) => ({ type: "Tasks" as const, id }))
-          : [{ type: "Tasks" as const }],
-    }),
-    getTasksByUser: builder.query<Task[], number>({
-      query: (userId) => `tasks/user/${userId}`,
-      providesTags: (result, error, userId) =>
-        result
-          ? result.map(({ id }) => ({ type: "Tasks", id }))
-          : [{ type: "Tasks", id: userId }],
-    }),
-    updateTaskStatus: builder.mutation<
-      Task,
-      { taskId: number; status: string }
-    >({
-      query: ({ taskId, status }) => ({
-        url: `tasks/${taskId}/status`,
-        method: "PATCH",
-        body: { status },
-      }),
-      invalidatesTags: (result, error, { taskId }) => [
-        { type: "Tasks", id: taskId },
-      ],
-    }),
-    getUsers: builder.query<User[], void>({
-      query: () => "users",
-      providesTags: ["User"],
-    }),
-    search: builder.query<SearchResults, string>({
-      query: (query) => `search?query=${query}`,
-    }),
   }),
 });
 
@@ -829,10 +727,4 @@ export const {
   useRejectProjectMutation,
   // Ajouter ce hook à la liste des exports en bas du fichier
   useGetProjectTaskAnalysisQuery,
-  useGetProjectsQuery,
-  useGetTasksQuery,
-  useGetTasksByUserQuery,
-  useUpdateTaskStatusMutation,
-  useGetUsersQuery,
-  useSearchQuery,
 } = api;

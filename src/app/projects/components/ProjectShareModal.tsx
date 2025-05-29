@@ -13,7 +13,6 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useInviteUsersMutation } from "../../state/api";
 
 interface ProjectShareModalProps {
   onClose: () => void;
@@ -36,9 +35,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   const [invitees, setInvitees] = useState<InviteeData[]>([
     { email: "", permission: "observer" },
   ]);
-
-  // Utiliser le hook RTK Query pour l'invitation
-  const [inviteUsers, { isLoading: isSubmitting }] = useInviteUsersMutation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEmailChange = (index: number, email: string) => {
     const newInvitees = [...invitees];
@@ -67,6 +64,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     }
   };
 
+  // Modifier la fonction handleSubmit pour s'assurer que les invitations sont correctement envoyées
   const handleSubmit = async () => {
     // Validation des emails
     const validInvitees = invitees.filter(
@@ -79,13 +77,36 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
       return;
     }
 
-    try {
-      // Utiliser RTK Query pour envoyer les invitations
-      const result = await inviteUsers({
-        id: projectId,
-        invitations: validInvitees,
-      }).unwrap();
+    setIsSubmitting(true);
 
+    try {
+      // Appel à l'API pour envoyer les invitations
+      const response = await fetch(
+        `https://backend-production-96a2.up.railway.app/api/projects/${projectId}/invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clerk-User-Id": localStorage.getItem("currentUserId") || "",
+          },
+          body: JSON.stringify({
+            invitations: validInvitees.map((inv) => ({
+              email: inv.email,
+              permission: inv.permission,
+            })),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API error:", errorData);
+        throw new Error(
+          `Erreur API: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const data = await response.json();
       toast.success(
         `${validInvitees.length} invitation(s) envoyée(s) avec succès`,
       );
@@ -93,6 +114,8 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     } catch (error) {
       console.error("Error sending invitations:", error);
       toast.error("Erreur lors de l'envoi des invitations");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
