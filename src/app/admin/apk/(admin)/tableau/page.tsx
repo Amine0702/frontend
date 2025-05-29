@@ -10,7 +10,7 @@ import {
   UserGroupIcon,
   TableCellsIcon,
 } from "@heroicons/react/24/outline";
-import { Search, Users, UserCircle, Check, Bell } from "lucide-react";
+import { Search, Users, UserCircle, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   useGetUserProjectsQuery,
   useGetProjectQuery,
-  useInviteUsersMutation,
+  useUpdateMemberRoleMutation,
 } from "@/app/state/api";
 
 // Types
@@ -117,12 +117,14 @@ function RoleSelect({
   member,
   projectName,
   boardName,
+  projectId,
 }: {
   currentRole: MemberRole;
-  onChange: (role: MemberRole) => void;
+  onChange: (role: MemberRole) => Promise<void>;
   member: Member;
   projectName: string;
   boardName: string;
+  projectId: number;
 }) {
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -143,20 +145,20 @@ function RoleSelect({
     setSending(true);
 
     try {
-      // Update the role
-      onChange(role);
+      // Update the role using the proper API
+      await onChange(role);
 
       // Show success notification
       toast({
-        title: "Notification envoyée",
+        title: "Rôle mis à jour avec succès",
         description: (
           <div className="mt-1">
             <p className="text-sm dark:text-white">
-              Un email a été envoyé à{" "}
+              Le rôle de{" "}
               <span className="font-semibold dark:text-white">
                 {member.name}
               </span>{" "}
-              pour l'informer de son nouveau rôle.
+              a été mis à jour avec succès.
             </p>
             <div className="mt-2 rounded-md bg-slate-100 p-2 text-xs dark:bg-slate-700">
               <p className="dark:text-white">
@@ -185,10 +187,10 @@ function RoleSelect({
           "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700",
       });
     } catch (error) {
-      console.error("Erreur lors de l'envoi de la notification:", error);
+      console.error("Erreur lors de la mise à jour du rôle:", error);
       toast({
         title: "Erreur",
-        description: "Impossible d'envoyer l'email de notification.",
+        description: "Impossible de mettre à jour le rôle. Veuillez réessayer.",
         variant: "destructive",
         duration: 3000,
       });
@@ -248,17 +250,23 @@ function MemberCard({
   projectName,
   boardName,
   onRoleChange,
+  projectId,
 }: {
   member: Member;
   projectName: string;
   boardName: string;
-  onRoleChange: (memberId: number, role: MemberRole) => void;
+  onRoleChange: (memberId: number, role: MemberRole) => Promise<void>;
+  projectId: number;
 }) {
   const [role, setRole] = useState<MemberRole>(member.pivot.role);
 
-  const handleRoleChange = (newRole: MemberRole) => {
-    setRole(newRole);
-    onRoleChange(member.id, newRole);
+  const handleRoleChange = async (newRole: MemberRole) => {
+    try {
+      await onRoleChange(member.id, newRole);
+      setRole(newRole);
+    } catch (error) {
+      console.error("Error updating role:", error);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -293,23 +301,21 @@ function MemberCard({
                   {member.name}
                 </h3>
                 <Badge
-                  variant={
-                    member.pivot.role === "manager" ? "default" : "secondary"
-                  }
+                  variant={role === "manager" ? "default" : "secondary"}
                   className={`ml-1 ${
-                    member.pivot.role === "manager"
+                    role === "manager"
                       ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white dark:from-purple-700/90 dark:to-indigo-700/90"
                       : "bg-gradient-to-r from-slate-200 to-slate-300 text-slate-700 dark:from-slate-700 dark:to-slate-600 dark:text-slate-300"
                   }`}
                 >
-                  {member.pivot.role === "manager" ? (
+                  {role === "manager" ? (
                     <UserCircle className="mr-1 h-3 w-3" />
                   ) : (
                     <Users className="mr-1 h-3 w-3" />
                   )}
-                  {member.pivot.role === "manager"
+                  {role === "manager"
                     ? "Manager"
-                    : member.pivot.role === "member"
+                    : role === "member"
                       ? "Membre"
                       : "Observateur"}
                 </Badge>
@@ -325,6 +331,7 @@ function MemberCard({
                 member={member}
                 projectName={projectName}
                 boardName={boardName}
+                projectId={projectId}
               />
             </div>
           </div>
@@ -430,13 +437,13 @@ function KanbanMembers({
   projectName: string;
 }) {
   const { data: projectData, isLoading, error } = useGetProjectQuery(projectId);
-  const [inviteUsers] = useInviteUsersMutation();
+  const [updateMemberRole] = useUpdateMemberRoleMutation();
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (projectData) {
-      // Add console log to debug the structure
       console.log("Project data:", projectData);
 
       // Check both possible locations for team members data
@@ -461,16 +468,12 @@ function KanbanMembers({
 
   const handleRoleChange = async (memberId: number, role: MemberRole) => {
     try {
-      // Use the inviteUsers mutation to update the member's role
-      await inviteUsers({
-        id: projectId,
-        invitations: [
-          {
-            email: members.find((m) => m.id === memberId)?.email || "",
-            permission: role, // The backend expects 'permission' but it maps to role
-          },
-        ],
-      });
+      // Use the correct updateMemberRole mutation
+      await updateMemberRole({
+        projectId: projectId.toString(),
+        memberId: memberId.toString(),
+        role: role,
+      }).unwrap();
 
       // Update local state
       setMembers(
@@ -480,8 +483,21 @@ function KanbanMembers({
             : member,
         ),
       );
+
+      toast({
+        title: "Succès",
+        description: "Le rôle du membre a été mis à jour avec succès.",
+        duration: 3000,
+      });
     } catch (error) {
       console.error("Error updating member role:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le rôle du membre.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      throw error; // Re-throw to handle in the component
     }
   };
 
@@ -490,8 +506,28 @@ function KanbanMembers({
       <Card className="w-full border-0 bg-white shadow-xl dark:bg-slate-800">
         <CardContent className="space-y-8 p-8">
           <div className="flex h-64 items-center justify-center">
-            <p className="text-lg text-gray-500 dark:text-gray-300">
-              Chargement des données...
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
+              <p className="text-lg text-gray-500 dark:text-gray-300">
+                Chargement des données...
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full border-0 bg-white shadow-xl dark:bg-slate-800">
+        <CardContent className="space-y-8 p-8">
+          <div className="flex h-64 flex-col items-center justify-center">
+            <p className="mb-4 text-lg text-red-500 dark:text-red-300">
+              Erreur lors du chargement des données du projet
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-300">
+              Veuillez rafraîchir la page ou réessayer plus tard.
             </p>
           </div>
         </CardContent>
@@ -499,21 +535,18 @@ function KanbanMembers({
     );
   }
 
-  // Add this debug section
-  console.log("Project data loaded:", projectData);
-  console.log("Team members:", members);
-
   if (projectData && (!members || members.length === 0)) {
     return (
       <Card className="w-full border-0 bg-white shadow-xl dark:bg-slate-800">
         <CardContent className="space-y-8 p-8">
           <div className="flex h-64 flex-col items-center justify-center">
-            <p className="mb-4 text-lg text-red-500 dark:text-red-300">
+            <Users className="h-16 w-16 text-muted-foreground/30 dark:text-white/30" />
+            <p className="mb-4 text-lg text-gray-500 dark:text-gray-300">
               Aucun membre d'équipe trouvé dans ce projet
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-300">
-              Structure de données reçue:{" "}
-              {JSON.stringify(Object.keys(projectData))}
+              Les membres apparaîtront ici une fois qu'ils auront rejoint le
+              projet.
             </p>
           </div>
         </CardContent>
@@ -572,6 +605,7 @@ function KanbanMembers({
                       projectName={projectName}
                       boardName={boardName}
                       onRoleChange={handleRoleChange}
+                      projectId={projectId}
                     />
                   </motion.div>
                 ))
@@ -598,35 +632,6 @@ function KanbanMembers({
   );
 }
 
-// Header Component
-function Header({ currentDate }: { currentDate: Date }) {
-  return (
-    <div className="mb-8">
-      <motion.h1
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-3xl font-bold text-transparent dark:from-purple-400 dark:to-indigo-400"
-      >
-        <TableCellsIcon className="h-10 w-10 text-purple-600 dark:text-purple-400" />
-        <span>Dashboard – Gestion des Rôles Projet</span>
-      </motion.h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-300">
-        Bonjour, aujourd'hui c'est le{" "}
-        {currentDate.toLocaleDateString("fr-FR", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })}
-      </p>
-      <p className="mt-2 text-lg font-medium text-gray-700 dark:text-gray-300">
-        Gestion des Rôles – Le Contrôle à Portée de Main
-      </p>
-    </div>
-  );
-}
-
 // Project List Component
 function ProjectList({
   projects,
@@ -638,7 +643,9 @@ function ProjectList({
   return (
     <div className="space-y-8 rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-800">
       <h1 className="flex items-center bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-4xl font-extrabold text-transparent dark:from-purple-300 dark:to-indigo-300">
-        <div className="rounded-xl bg-purple-200/50 p-3 dark:bg-purple-800/30"></div>
+        <div className="rounded-xl bg-purple-200/50 p-3 dark:bg-purple-800/30">
+          <TableCellsIcon className="h-8 w-8 text-purple-600 dark:text-white" />
+        </div>
         <span className="ml-4">Sélectionnez un projet</span>
       </h1>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -707,9 +714,17 @@ export default function ProjectsPage() {
   if (!clerkUserId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6 dark:bg-slate-900">
-        <p className="text-lg text-gray-500 dark:text-gray-300">
-          Veuillez vous connecter pour accéder à cette page.
-        </p>
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <UserCircle className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-600" />
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Connexion requise
+            </h3>
+            <p className="mt-2 text-gray-500 dark:text-gray-300">
+              Veuillez vous connecter pour accéder à cette page.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -717,9 +732,17 @@ export default function ProjectsPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6 dark:bg-slate-900">
-        <p className="text-lg text-gray-500 dark:text-gray-300">
-          Chargement des projets...
-        </p>
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-purple-600 border-t-transparent"></div>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Chargement en cours
+            </h3>
+            <p className="mt-2 text-gray-500 dark:text-gray-300">
+              Chargement des projets...
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -727,9 +750,31 @@ export default function ProjectsPage() {
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6 dark:bg-slate-900">
-        <p className="text-lg text-red-500 dark:text-red-300">
-          Erreur lors du chargement des projets
-        </p>
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="mx-auto h-16 w-16 rounded-full bg-red-100 p-4 dark:bg-red-900/20">
+              <svg
+                className="h-8 w-8 text-red-600 dark:text-red-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Erreur de chargement
+            </h3>
+            <p className="mt-2 text-gray-500 dark:text-gray-300">
+              Erreur lors du chargement des projets. Veuillez réessayer.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

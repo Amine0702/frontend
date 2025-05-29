@@ -629,6 +629,18 @@ export const api = createApi({
         { type: "Tasks", id },
       ],
     }),
+
+    updateMemberRole: builder.mutation<
+      { message: string },
+      { projectId: string; memberId: string; role: string }
+    >({
+      query: ({ projectId, memberId, role }) => ({
+        url: `projects/${projectId}/members/${memberId}/role`,
+        method: "PUT",
+        body: { role },
+      }),
+      invalidatesTags: ["Projects"],
+    }),
   }),
 });
 
@@ -727,4 +739,5 @@ export const {
   useRejectProjectMutation,
   // Ajouter ce hook à la liste des exports en bas du fichier
   useGetProjectTaskAnalysisQuery,
+  useUpdateMemberRoleMutation,
 } = api;
