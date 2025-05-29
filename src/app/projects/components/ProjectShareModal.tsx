@@ -1,119 +1,151 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { X, Mail, Check, Eye, Edit, UserCog, AlertCircle, Plus } from "lucide-react"
-import { toast } from "sonner"
+import type React from "react";
+import { useState } from "react";
+import {
+  X,
+  Mail,
+  Check,
+  Eye,
+  Edit,
+  UserCog,
+  AlertCircle,
+  Plus,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface ProjectShareModalProps {
-  onClose: () => void
-  projectName: string
-  projectId: string
+  onClose: () => void;
+  projectName: string;
+  projectId: string;
 }
 
-type PermissionLevel = "observer" | "member" | "manager"
+type PermissionLevel = "observer" | "member" | "manager";
 
 interface InviteeData {
-  email: string
-  permission: PermissionLevel
+  email: string;
+  permission: PermissionLevel;
 }
 
-const ProjectShareModal: React.FC<ProjectShareModalProps> = ({ onClose, projectName, projectId }) => {
-  const [invitees, setInvitees] = useState<InviteeData[]>([{ email: "", permission: "observer" }])
-  const [isSubmitting, setIsSubmitting] = useState(false)
+const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
+  onClose,
+  projectName,
+  projectId,
+}) => {
+  const [invitees, setInvitees] = useState<InviteeData[]>([
+    { email: "", permission: "observer" },
+  ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEmailChange = (index: number, email: string) => {
-    const newInvitees = [...invitees]
-    newInvitees[index].email = email
-    setInvitees(newInvitees)
-  }
+    const newInvitees = [...invitees];
+    newInvitees[index].email = email;
+    setInvitees(newInvitees);
+  };
 
-  const handlePermissionChange = (index: number, permission: PermissionLevel) => {
-    const newInvitees = [...invitees]
-    newInvitees[index].permission = permission
-    setInvitees(newInvitees)
-  }
+  const handlePermissionChange = (
+    index: number,
+    permission: PermissionLevel,
+  ) => {
+    const newInvitees = [...invitees];
+    newInvitees[index].permission = permission;
+    setInvitees(newInvitees);
+  };
 
   const addInviteeField = () => {
-    setInvitees([...invitees, { email: "", permission: "observer" }])
-  }
+    setInvitees([...invitees, { email: "", permission: "observer" }]);
+  };
 
   const removeInviteeField = (index: number) => {
     if (invitees.length > 1) {
-      const newInvitees = [...invitees]
-      newInvitees.splice(index, 1)
-      setInvitees(newInvitees)
+      const newInvitees = [...invitees];
+      newInvitees.splice(index, 1);
+      setInvitees(newInvitees);
     }
-  }
+  };
 
   // Modifier la fonction handleSubmit pour s'assurer que les invitations sont correctement envoyées
   const handleSubmit = async () => {
     // Validation des emails
     const validInvitees = invitees.filter(
-      (inv) => inv.email.trim() !== "" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.email),
-    )
+      (inv) =>
+        inv.email.trim() !== "" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.email),
+    );
 
     if (validInvitees.length === 0) {
-      toast.error("Veuillez saisir au moins une adresse email valide")
-      return
+      toast.error("Veuillez saisir au moins une adresse email valide");
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       // Appel à l'API pour envoyer les invitations
-      const response = await fetch(`http://localhost:8000/api/projects/${projectId}/invite`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Clerk-User-Id": localStorage.getItem("currentUserId") || "",
+      const response = await fetch(
+        `https://frontend-production-46b5.up.railway.app//api/projects/${projectId}/invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clerk-User-Id": localStorage.getItem("currentUserId") || "",
+          },
+          body: JSON.stringify({
+            invitations: validInvitees.map((inv) => ({
+              email: inv.email,
+              permission: inv.permission,
+            })),
+          }),
         },
-        body: JSON.stringify({
-          invitations: validInvitees.map((inv) => ({
-            email: inv.email,
-            permission: inv.permission,
-          })),
-        }),
-      })
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error("API error:", errorData)
-        throw new Error(`Erreur API: ${response.status} ${response.statusText}`)
+        const errorData = await response.json();
+        console.error("API error:", errorData);
+        throw new Error(
+          `Erreur API: ${response.status} ${response.statusText}`,
+        );
       }
 
-      const data = await response.json()
-      toast.success(`${validInvitees.length} invitation(s) envoyée(s) avec succès`)
-      onClose()
+      const data = await response.json();
+      toast.success(
+        `${validInvitees.length} invitation(s) envoyée(s) avec succès`,
+      );
+      onClose();
     } catch (error) {
-      console.error("Error sending invitations:", error)
-      toast.error("Erreur lors de l'envoi des invitations")
+      console.error("Error sending invitations:", error);
+      toast.error("Erreur lors de l'envoi des invitations");
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-violet-800">Inviter des collaborateurs</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-500">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-violet-800">
+            Inviter des collaborateurs
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+          >
             <X size={20} />
           </button>
         </div>
 
         <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-2">
-            Invitez des personnes à collaborer sur le projet <span className="font-semibold">{projectName}</span>
+          <p className="mb-2 text-sm text-gray-600">
+            Invitez des personnes à collaborer sur le projet{" "}
+            <span className="font-semibold">{projectName}</span>
           </p>
         </div>
 
-        <div className="space-y-4 mb-6">
+        <div className="mb-6 space-y-4">
           {invitees.map((invitee, index) => (
             <div key={index} className="flex items-center space-x-2">
               <div className="flex-grow">
-                <div className="flex items-center border rounded-md overflow-hidden">
+                <div className="flex items-center overflow-hidden rounded-md border">
                   <span className="bg-gray-100 p-2 text-gray-500">
                     <Mail size={18} />
                   </span>
@@ -131,8 +163,13 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({ onClose, projectN
               <div className="flex-shrink-0">
                 <select
                   value={invitee.permission}
-                  onChange={(e) => handlePermissionChange(index, e.target.value as PermissionLevel)}
-                  className="p-2 border rounded-md bg-white"
+                  onChange={(e) =>
+                    handlePermissionChange(
+                      index,
+                      e.target.value as PermissionLevel,
+                    )
+                  }
+                  className="rounded-md border bg-white p-2"
                 >
                   <option value="observer">Observateur</option>
                   <option value="member">Membre</option>
@@ -150,50 +187,68 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({ onClose, projectN
             </div>
           ))}
 
-          <button onClick={addInviteeField} className="flex items-center text-sm text-violet-600 hover:text-violet-800">
+          <button
+            onClick={addInviteeField}
+            className="flex items-center text-sm text-violet-600 hover:text-violet-800"
+          >
             <Plus size={16} className="mr-1" /> Ajouter un autre email
           </button>
         </div>
 
-        <div className="bg-violet-50 p-3 rounded-md mb-6 border border-violet-200">
+        <div className="mb-6 rounded-md border border-violet-200 bg-violet-50 p-3">
           <div className="flex items-center">
-            <AlertCircle size={18} className="text-violet-600 mr-2" />
-            <h3 className="text-sm font-medium text-violet-800">Niveaux de permission</h3>
+            <AlertCircle size={18} className="mr-2 text-violet-600" />
+            <h3 className="text-sm font-medium text-violet-800">
+              Niveaux de permission
+            </h3>
           </div>
-          <ul className="text-xs text-violet-700 space-y-1 mt-2">
+          <ul className="mt-2 space-y-1 text-xs text-violet-700">
             <li className="flex items-center">
               <Eye size={12} className="mr-1" />
-              <b>Observateur:</b> Peut voir les tâches mais ne peut rien modifier
+              <b>Observateur:</b> Peut voir les tâches mais ne peut rien
+              modifier
             </li>
             <li className="flex items-center">
               <Edit size={12} className="mr-1" />
-              <b>Membre:</b> Peut modifier ses propres tâches et en créer de nouvelles
+              <b>Membre:</b> Peut modifier ses propres tâches et en créer de
+              nouvelles
             </li>
             <li className="flex items-center">
               <UserCog size={12} className="mr-1" />
-              <b>Manager:</b> Accès complet, peut assigner des tâches et modifier toutes les tâches
+              <b>Manager:</b> Accès complet, peut assigner des tâches et
+              modifier toutes les tâches
             </li>
           </ul>
         </div>
 
         <div className="flex justify-end space-x-3">
-          <button onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+          <button
+            onClick={onClose}
+            className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200"
+          >
             Annuler
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-violet-500 text-white rounded-md hover:bg-violet-600 flex items-center"
+            className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600"
           >
             {isSubmitting ? (
               <>
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  className="-ml-1 mr-2 h-4 w-4 animate-spin text-white"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
                   <path
                     className="opacity-75"
                     fill="currentColor"
@@ -212,7 +267,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({ onClose, projectN
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ProjectShareModal
+export default ProjectShareModal;
