@@ -41,7 +41,6 @@ import {
 // Types
 type MemberRole = "manager" | "member" | "observer";
 
-// Type for a project with its kanban
 type Project = {
   id: number;
   name: string;
@@ -145,10 +144,8 @@ function RoleSelect({
     setSending(true);
 
     try {
-      // Update the role using the proper API
       await onChange(role);
 
-      // Show success notification
       toast({
         title: "Rôle mis à jour avec succès",
         description: (
@@ -266,6 +263,7 @@ function MemberCard({
       setRole(newRole);
     } catch (error) {
       console.error("Error updating role:", error);
+      throw error;
     }
   };
 
@@ -446,14 +444,14 @@ function KanbanMembers({
     if (projectData) {
       console.log("Project data:", projectData);
 
-      // Check both possible locations for team members data
-      if (projectData.team_members && projectData.team_members.length > 0) {
-        setMembers(projectData.team_members);
-      } else if (
-        projectData.teamMembers &&
-        projectData.teamMembers.length > 0
-      ) {
+      // Check multiple possible locations for team members data
+      if (projectData.teamMembers && projectData.teamMembers.length > 0) {
         setMembers(projectData.teamMembers);
+      } else if (
+        projectData.team_members &&
+        projectData.team_members.length > 0
+      ) {
+        setMembers(projectData.team_members);
       } else if (projectData.team && projectData.team.length > 0) {
         setMembers(projectData.team);
       }
@@ -468,7 +466,15 @@ function KanbanMembers({
 
   const handleRoleChange = async (memberId: number, role: MemberRole) => {
     try {
-      // Use the correct updateMemberRole mutation
+      console.log(
+        "Updating role for member:",
+        memberId,
+        "to role:",
+        role,
+        "in project:",
+        projectId,
+      );
+
       await updateMemberRole({
         projectId: projectId.toString(),
         memberId: memberId.toString(),
@@ -489,15 +495,23 @@ function KanbanMembers({
         description: "Le rôle du membre a été mis à jour avec succès.",
         duration: 3000,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating member role:", error);
+
+      let errorMessage = "Impossible de mettre à jour le rôle du membre.";
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour le rôle du membre.",
+        description: errorMessage,
         variant: "destructive",
         duration: 3000,
       });
-      throw error; // Re-throw to handle in the component
+      throw error;
     }
   };
 
@@ -581,7 +595,6 @@ function KanbanMembers({
           </div>
         </div>
 
-        {/* Statistiques des rôles */}
         <RoleStats members={members} />
 
         <div className="space-y-6">
@@ -683,27 +696,18 @@ function ProjectList({
 // Main Component
 export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Get the current user ID from localStorage
   const clerkUserId =
     typeof window !== "undefined"
       ? localStorage.getItem("currentUserId")
       : null;
 
-  // Fetch projects for the current user
   const {
     data: projectsData,
     isLoading,
     error,
   } = useGetUserProjectsQuery(clerkUserId || "", { skip: !clerkUserId });
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentDate(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Combine manager and invited projects
   const allProjects = projectsData
     ? [
         ...(projectsData.managerProjects || []),
