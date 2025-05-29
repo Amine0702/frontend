@@ -515,7 +515,7 @@ export const api = createApi({
         body: { invitations },
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: "Projects", id },
+        { type: "Projects", id: id },
         { type: "Teams" },
         { type: "Notifications" },
       ],
@@ -545,6 +545,11 @@ export const api = createApi({
 
     getPendingProjects: builder.query<any, void>({
       query: () => `/admin/projects/pending`,
+      providesTags: ["Projects"],
+    }),
+
+    getUserPendingProjects: builder.query<any, string>({
+      query: (clerkUserId) => `/users/${clerkUserId}/pending-projects`,
       providesTags: ["Projects"],
     }),
 
@@ -713,4 +718,5 @@ export const {
   useRejectProjectMutation,
   useGetProjectTaskAnalysisQuery,
   useUpdateMemberRoleMutation,
+  useGetUserPendingProjectsQuery,
 } = api;

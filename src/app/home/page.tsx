@@ -73,7 +73,7 @@ import {
 import { useUser } from "@clerk/nextjs";
 import {
   useGetUserProjectsQuery,
-  useGetPendingProjectsQuery,
+  useGetUserPendingProjectsQuery,
   useGetProjectQuery,
   useUpdateTaskMutation,
 } from "@/app/state/api";
@@ -109,9 +109,9 @@ const Index = () => {
     skip: !clerkUserId,
   });
 
-  // Fetch pending projects using RTK Query
+  // Fetch pending projects using RTK Query for the specific user
   const { data: pendingProjectsData, isLoading: isLoadingPendingProjects } =
-    useGetPendingProjectsQuery(undefined, {
+    useGetUserPendingProjectsQuery(clerkUserId, {
       skip: !clerkUserId,
     });
 
