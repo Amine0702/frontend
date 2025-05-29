@@ -82,7 +82,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     try {
       // Appel à l'API pour envoyer les invitations
       const response = await fetch(
-        `https://frontend-production-46b5.up.railway.app//api/projects/${projectId}/invite`,
+        `https://frontend-production-46b5.up.railway.app/api/projects/${projectId}/invite`,
         {
           method: "POST",
           headers: {
