@@ -545,11 +545,39 @@ export const api = createApi({
 
     getPendingProjects: builder.query<any, void>({
       query: () => `/admin/projects/pending`,
+      transformResponse: (response: any) => {
+        console.log("Pending projects response:", response);
+        return response;
+      },
       providesTags: ["Projects"],
     }),
 
+    // Nouveau endpoint pour les projets en attente d'un utilisateur spécifique
     getUserPendingProjects: builder.query<any, string>({
-      query: (clerkUserId) => `/users/${clerkUserId}/pending-projects`,
+      query: (clerkUserId) => `/admin/projects/pending`,
+      transformResponse: (response: any, meta, clerkUserId) => {
+        console.log("Raw pending projects response:", response);
+        console.log("Current user ID:", clerkUserId);
+
+        if (
+          response &&
+          response.pendingProjects &&
+          Array.isArray(response.pendingProjects)
+        ) {
+          // Filtrer les projets pour ne garder que ceux de l'utilisateur actuel
+          const userPendingProjects = response.pendingProjects.filter(
+            (project: any) => project.clerk_user_id === clerkUserId,
+          );
+
+          console.log("Filtered user pending projects:", userPendingProjects);
+
+          return {
+            pendingProjects: userPendingProjects,
+          };
+        }
+
+        return { pendingProjects: [] };
+      },
       providesTags: ["Projects"],
     }),
 

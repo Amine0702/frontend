@@ -110,10 +110,13 @@ const Index = () => {
   });
 
   // Fetch pending projects using RTK Query for the specific user
-  const { data: pendingProjectsData, isLoading: isLoadingPendingProjects } =
-    useGetUserPendingProjectsQuery(clerkUserId, {
-      skip: !clerkUserId,
-    });
+  const {
+    data: pendingProjectsData,
+    isLoading: isLoadingPendingProjects,
+    error: pendingProjectsError,
+  } = useGetUserPendingProjectsQuery(clerkUserId, {
+    skip: !clerkUserId,
+  });
 
   // Get selected project details if a project is selected
   const { data: selectedProjectData, isLoading: isLoadingSelectedProject } =
@@ -131,32 +134,56 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // Debug logs
+  useEffect(() => {
+    console.log("=== DEBUG PENDING PROJECTS ===");
+    console.log("clerkUserId:", clerkUserId);
+    console.log("pendingProjectsData:", pendingProjectsData);
+    console.log("isLoadingPendingProjects:", isLoadingPendingProjects);
+    console.log("pendingProjectsError:", pendingProjectsError);
+    console.log("===============================");
+  }, [
+    clerkUserId,
+    pendingProjectsData,
+    isLoadingPendingProjects,
+    pendingProjectsError,
+  ]);
+
   // Process pending projects data when it's loaded
   useEffect(() => {
-    if (pendingProjectsData && pendingProjectsData.pendingProjects) {
-      console.log(
-        "Données brutes des projets en attente:",
-        pendingProjectsData,
-      );
+    console.log("Processing pending projects data...");
 
-      const formattedPendingProjects = pendingProjectsData.pendingProjects.map(
-        (project: any) => ({
-          id: project.id,
-          title: project.name || "Projet sans nom",
-          description: project.description || "Aucune description disponible",
-          startDate: project.start_date || null,
-          endDate: project.end_date || null,
-          clerkUserId: project.clerk_user_id || "",
-          status: "EN_ATTENTE",
-          progress: 0,
-          isActive: false,
-          createdAt: project.created_at || null,
-          team_members: project.team_members || [],
-        }),
-      );
+    if (pendingProjectsData) {
+      console.log("Pending projects data received:", pendingProjectsData);
 
-      console.log("Projets en attente formatés:", formattedPendingProjects);
-      setPendingProjects(formattedPendingProjects);
+      if (
+        pendingProjectsData.pendingProjects &&
+        Array.isArray(pendingProjectsData.pendingProjects)
+      ) {
+        const formattedPendingProjects =
+          pendingProjectsData.pendingProjects.map((project: any) => ({
+            id: project.id,
+            title: project.name || "Projet sans nom",
+            description: project.description || "Aucune description disponible",
+            startDate: project.start_date || null,
+            endDate: project.end_date || null,
+            clerkUserId: project.clerk_user_id || "",
+            status: "EN_ATTENTE",
+            progress: 0,
+            isActive: false,
+            createdAt: project.created_at || null,
+            team_members: project.team_members || [],
+          }));
+
+        console.log("Formatted pending projects:", formattedPendingProjects);
+        setPendingProjects(formattedPendingProjects);
+      } else {
+        console.log("No pending projects found in data");
+        setPendingProjects([]);
+      }
+    } else {
+      console.log("No pending projects data");
+      setPendingProjects([]);
     }
   }, [pendingProjectsData]);
 
@@ -439,12 +466,7 @@ const Index = () => {
   }, []);
 
   // Add a loading state
-  if (
-    !isLoaded ||
-    isLoadingProjects ||
-    !isDataLoaded ||
-    isLoadingPendingProjects
-  ) {
+  if (!isLoaded || isLoadingProjects || !isDataLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
@@ -645,6 +667,19 @@ const Index = () => {
             </button>
           </div>
         </div>
+
+        {/* Debug info - Remove in production */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 rounded bg-gray-100 p-4 text-sm">
+            <p>
+              <strong>Debug Info:</strong>
+            </p>
+            <p>User ID: {clerkUserId}</p>
+            <p>Pending Projects Count: {pendingProjects.length}</p>
+            <p>Loading Pending: {isLoadingPendingProjects ? "Yes" : "No"}</p>
+            <p>Pending Projects Data: {JSON.stringify(pendingProjectsData)}</p>
+          </div>
+        )}
 
         {/* Statistiques rapides */}
         <div
