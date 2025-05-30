@@ -1,5 +1,5 @@
 "use client";
-import "../home.css";
+import "./home.css";
 import { useState, useEffect } from "react";
 import {
   Bar,
