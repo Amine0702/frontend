@@ -515,7 +515,7 @@ export const api = createApi({
         body: { invitations },
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: "Projects", id: id },
+        { type: "Projects", id },
         { type: "Teams" },
         { type: "Notifications" },
       ],
@@ -545,39 +545,6 @@ export const api = createApi({
 
     getPendingProjects: builder.query<any, void>({
       query: () => `/admin/projects/pending`,
-      transformResponse: (response: any) => {
-        console.log("Pending projects response:", response);
-        return response;
-      },
-      providesTags: ["Projects"],
-    }),
-
-    // Nouveau endpoint pour les projets en attente d'un utilisateur spécifique
-    getUserPendingProjects: builder.query<any, string>({
-      query: (clerkUserId) => `/admin/projects/pending`,
-      transformResponse: (response: any, meta, clerkUserId) => {
-        console.log("Raw pending projects response:", response);
-        console.log("Current user ID:", clerkUserId);
-
-        if (
-          response &&
-          response.pendingProjects &&
-          Array.isArray(response.pendingProjects)
-        ) {
-          // Filtrer les projets pour ne garder que ceux de l'utilisateur actuel
-          const userPendingProjects = response.pendingProjects.filter(
-            (project: any) => project.clerk_user_id === clerkUserId,
-          );
-
-          console.log("Filtered user pending projects:", userPendingProjects);
-
-          return {
-            pendingProjects: userPendingProjects,
-          };
-        }
-
-        return { pendingProjects: [] };
-      },
       providesTags: ["Projects"],
     }),
 
@@ -645,13 +612,13 @@ export const api = createApi({
       ],
     }),
 
-    // Update member role endpoint with correct URL
+    // FIXED: Update member role endpoint with correct URL
     updateMemberRole: builder.mutation<
-      { message: string; member?: any; role?: string },
+      { message: string; member?: any },
       { projectId: string; memberId: string; role: string }
     >({
       query: ({ projectId, memberId, role }) => ({
-        url: `/projects/${projectId}/members/${memberId}/role`,
+        url: `/projects/${projectId}/members/${memberId}/permission`,
         method: "PUT",
         body: { role },
       }),
@@ -745,6 +712,6 @@ export const {
   useApproveProjectMutation,
   useRejectProjectMutation,
   useGetProjectTaskAnalysisQuery,
+  // FIXED: Export the corrected hook
   useUpdateMemberRoleMutation,
-  useGetUserPendingProjectsQuery,
 } = api;
