@@ -3,7 +3,18 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-// Define protected routes (matcher expects NextRequest)
+// Redirection de mdwnext.tn → www.mdwnext.tn
+function redirectToWWW(req: NextRequest) {
+  const host = req.headers.get("host");
+  if (host === "mdwnext.tn") {
+    const url = new URL(req.url);
+    url.hostname = "www.mdwnext.tn";
+    return NextResponse.redirect(url.toString(), 308);
+  }
+  return null;
+}
+
+// Define protected routes
 const isProtectedRoute = createRouteMatcher([
   "/admin(.*)",
   "/notes(.*)",
@@ -15,21 +26,23 @@ const isProtectedRoute = createRouteMatcher([
   "/profile(.*)",
 ]);
 
-// Clerk middleware: handler receives (auth, req)
+// Middleware principal
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  // Invoke auth() to get user data and redirect helper
+  // 🔁 Redirection domaine
+  const redirect = redirectToWWW(req);
+  if (redirect) return redirect;
+
+  // 🔐 Authentification Clerk
   const { userId, redirectToSignIn } = await auth();
 
-  // If user is not authenticated and path is protected, redirect
   if (!userId && isProtectedRoute(req)) {
     return redirectToSignIn();
   }
 
-  // Otherwise, continue processing
   return NextResponse.next();
 });
 
-// Apply middleware to specific paths (protected routes, API, excluding static)
+// Appliquer middleware aux routes spécifiques
 export const config = {
   matcher: [
     "/admin/:path*",

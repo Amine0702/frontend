@@ -7,19 +7,4 @@ module.exports = {
     });
     return config;
   },
-  async redirects() {
-    return [
-      {
-        source: "/",
-        has: [
-          {
-            type: "host",
-            value: "mdwnext.tn",
-          },
-        ],
-        destination: "https://www.mdwnext.tn",
-        permanent: true,
-      },
-    ];
-  },
 };
