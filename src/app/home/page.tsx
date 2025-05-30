@@ -1,5 +1,5 @@
 "use client";
-import "./home.css";
+import "../home.css";
 import { useState, useEffect } from "react";
 import {
   Bar,
@@ -470,8 +470,10 @@ const Index = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-          <p className="mt-4 text-lg">Chargement de vos données...</p>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-violet-600 motion-reduce:animate-[spin_1.5s_linear_infinite] dark:text-violet-400"></div>
+          <p className="mt-4 text-lg text-gray-700 dark:text-gray-300">
+            Chargement de vos données...
+          </p>
         </div>
       </div>
     );
@@ -482,10 +484,10 @@ const Index = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="max-w-md rounded-lg bg-white p-6 text-center shadow-lg dark:bg-gray-800">
-          <h2 className="mb-4 text-2xl font-bold text-red-600">
+          <h2 className="mb-4 text-2xl font-bold text-red-600 dark:text-red-400">
             Erreur de chargement
           </h2>
-          <p className="mb-4">
+          <p className="mb-4 text-gray-700 dark:text-gray-300">
             Impossible de charger vos projets. Veuillez réessayer plus tard.
           </p>
           <Button onClick={() => window.location.reload()}>Réessayer</Button>
@@ -670,7 +672,7 @@ const Index = () => {
 
         {/* Debug info - Remove in production */}
         {process.env.NODE_ENV === "development" && (
-          <div className="mb-4 rounded bg-gray-100 p-4 text-sm">
+          <div className="mb-4 rounded bg-gray-100 p-4 text-sm dark:bg-gray-800 dark:text-gray-300">
             <p>
               <strong>Debug Info:</strong>
             </p>
@@ -705,7 +707,7 @@ const Index = () => {
                   : 0,
               isPositive: false,
             }}
-            className="cursor-pointer bg-gradient-to-br from-violet-50 dark:from-violet-900/20 dark:to-violet-800/20"
+            className="cursor-pointer bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/20"
             onClick={() => setIsPendingProjectsOpen(true)}
           />
           <StatCard
@@ -741,9 +743,17 @@ const Index = () => {
             <DashboardCard title="Distribution des priorités">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={taskPriorityData}>
-                  <CartesianGrid strokeDasharray="4 4" stroke="#e0e0e0" />
-                  <XAxis dataKey="name" stroke="#718096" />
-                  <YAxis stroke="#718096" />
+                  <CartesianGrid
+                    strokeDasharray="4 4"
+                    stroke="#e0e0e0"
+                    className="dark:stroke-gray-600"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#718096"
+                    className="dark:stroke-gray-400"
+                  />
+                  <YAxis stroke="#718096" className="dark:stroke-gray-400" />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "rgba(255, 255, 255, 0.95)",
@@ -751,6 +761,7 @@ const Index = () => {
                       borderRadius: "8px",
                       boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
                     }}
+                    wrapperClassName="dark:[&_.recharts-tooltip-wrapper]:!bg-gray-800 dark:[&_.recharts-tooltip-wrapper]:!text-gray-200 dark:[&_.recharts-tooltip-wrapper]:!border-gray-600"
                     formatter={(value) => [`${value} tâches`, "Quantité"]}
                     labelFormatter={(name) => `Priorité: ${name}`}
                   />
@@ -795,6 +806,7 @@ const Index = () => {
                       borderRadius: "8px",
                       boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
                     }}
+                    wrapperClassName="dark:[&_.recharts-tooltip-wrapper]:!bg-gray-800 dark:[&_.recharts-tooltip-wrapper]:!text-gray-200 dark:[&_.recharts-tooltip-wrapper]:!border-gray-600"
                   />
                   <Legend formatter={(value) => `${value}`} />
                 </PieChart>
@@ -856,8 +868,8 @@ const Index = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="flex h-[250px] flex-col items-center justify-center text-gray-500">
-                    <CalendarDays className="mb-2 h-10 w-10 text-gray-400" />
+                  <div className="flex h-[250px] flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                    <CalendarDays className="mb-2 h-10 w-10 text-gray-400 dark:text-gray-500" />
                     <p className="text-center">
                       Aucune tâche à venir cette semaine
                     </p>
@@ -891,50 +903,50 @@ const Index = () => {
               <div className="mb-4 flex flex-wrap gap-2">
                 <button
                   onClick={() => setFilterStatus("all")}
-                  className={`rounded-full px-3 py-1 text-sm ${
+                  className={`rounded-full px-3 py-1 text-sm transition-colors ${
                     filterStatus === "all"
                       ? "bg-violet-600 text-white"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
                   Toutes
                 </button>
                 <button
                   onClick={() => setFilterStatus("à faire")}
-                  className={`rounded-full px-3 py-1 text-sm ${
+                  className={`rounded-full px-3 py-1 text-sm transition-colors ${
                     filterStatus === "à faire"
                       ? "bg-yellow-500 text-white"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
                   À faire
                 </button>
                 <button
                   onClick={() => setFilterStatus("en cours")}
-                  className={`rounded-full px-3 py-1 text-sm ${
+                  className={`rounded-full px-3 py-1 text-sm transition-colors ${
                     filterStatus === "en cours"
                       ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
                   En cours
                 </button>
                 <button
                   onClick={() => setFilterStatus("terminé")}
-                  className={`rounded-full px-3 py-1 text-sm ${
+                  className={`rounded-full px-3 py-1 text-sm transition-colors ${
                     filterStatus === "terminé"
                       ? "bg-green-500 text-white"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
                   Terminées
                 </button>
                 <button
                   onClick={() => setFilterStatus("urgent")}
-                  className={`rounded-full px-3 py-1 text-sm ${
+                  className={`rounded-full px-3 py-1 text-sm transition-colors ${
                     filterStatus === "urgent"
                       ? "bg-red-500 text-white"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   }`}
                 >
                   Urgentes
@@ -985,7 +997,7 @@ const Index = () => {
                                   : task.priority === "HIGH"
                                     ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
                                     : task.priority === "MEDIUM"
-                                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
                                       : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                               }`}
                             >
@@ -996,9 +1008,11 @@ const Index = () => {
                             <div className="flex items-center">
                               <CalendarDays
                                 size={16}
-                                className="mr-2 text-gray-500"
+                                className="mr-2 text-gray-500 dark:text-gray-400"
                               />
-                              <span>{formatDateFr(task.dueDate)}</span>
+                              <span className="text-gray-700 dark:text-gray-300">
+                                {formatDateFr(task.dueDate)}
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1077,7 +1091,7 @@ const Index = () => {
                       {project.description || "Aucune description disponible"}
                     </p>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {project.startDate
                           ? `Début prévu: ${formatDateFr(project.startDate)}`
                           : "Date de début: Non définie"}
@@ -1089,7 +1103,7 @@ const Index = () => {
                   </CardContent>
                   <CardFooter className="pb-2 pt-0">
                     <div className="flex w-full items-center justify-between">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {project.endDate
                           ? `Fin prévue: ${formatDateFr(project.endDate)}`
                           : "Date de fin: Non définie"}
@@ -1107,7 +1121,7 @@ const Index = () => {
             ) : (
               <div className="py-8 text-center">
                 <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-                  <ClipboardCheck className="h-8 w-8 text-gray-400" />
+                  <ClipboardCheck className="h-8 w-8 text-gray-400 dark:text-gray-500" />
                 </div>
                 <p className="text-gray-500 dark:text-gray-400">
                   Aucun projet en attente d'approbation
@@ -1158,10 +1172,10 @@ const Index = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                         Description
                       </h4>
-                      <p className="mt-1">
+                      <p className="mt-1 text-gray-700 dark:text-gray-300">
                         {selectedTask.description ||
                           "Aucune description disponible."}
                       </p>
@@ -1169,7 +1183,7 @@ const Index = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">
+                        <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                           Statut
                         </h4>
                         <div
@@ -1179,18 +1193,18 @@ const Index = () => {
                         </div>
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">
+                        <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                           Priorité
                         </h4>
                         <div
                           className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-medium ${
                             selectedTask.priority === "URGENT"
-                              ? "bg-red-100 text-red-800"
+                              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                               : selectedTask.priority === "HIGH"
-                                ? "bg-orange-100 text-orange-800"
+                                ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
                                 : selectedTask.priority === "MEDIUM"
-                                  ? "bg-orange-100 text-orange-800"
-                                  : "bg-green-100 text-green-800"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                           }`}
                         >
                           {translateStatus(selectedTask.priority)}
@@ -1199,31 +1213,31 @@ const Index = () => {
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                         Date d'échéance
                       </h4>
-                      <p className="mt-1 flex items-center">
+                      <p className="mt-1 flex items-center text-gray-700 dark:text-gray-300">
                         <CalendarDays
                           size={16}
-                          className="mr-2 text-gray-500"
+                          className="mr-2 text-gray-500 dark:text-gray-400"
                         />
                         {formatDateFr(selectedTask.dueDate)}
                       </p>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                         Projet associé
                       </h4>
                       {selectedTaskProject ? (
                         <div className="mt-2 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                          <h5 className="font-medium">
+                          <h5 className="font-medium text-gray-900 dark:text-gray-100">
                             {selectedTaskProject.title}
                           </h5>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {selectedTaskProject.description}
                           </p>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             Du {formatDateFr(selectedTaskProject.startDate)}
                             {selectedTaskProject.endDate
                               ? ` au ${formatDateFr(selectedTaskProject.endDate)}`
@@ -1231,7 +1245,7 @@ const Index = () => {
                           </p>
                         </div>
                       ) : (
-                        <p className="mt-1 text-gray-500">
+                        <p className="mt-1 text-gray-500 dark:text-gray-400">
                           Aucun projet associé
                         </p>
                       )}
@@ -1286,9 +1300,11 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="mb-4">{selectedProject.description}</p>
+                    <p className="mb-4 text-gray-700 dark:text-gray-300">
+                      {selectedProject.description}
+                    </p>
 
-                    <h4 className="mb-2 flex items-center font-medium">
+                    <h4 className="mb-2 flex items-center font-medium text-gray-900 dark:text-gray-100">
                       <FileText size={16} className="mr-2" />
                       Tâches du projet ({projectTasks.length})
                     </h4>
@@ -1306,7 +1322,7 @@ const Index = () => {
                             }}
                           >
                             <div className="flex items-center justify-between">
-                              <h5 className="flex items-center font-medium">
+                              <h5 className="flex items-center font-medium text-gray-900 dark:text-gray-100">
                                 <div
                                   className={`mr-2 h-2 w-2 rounded-full ${
                                     task.priority === "URGENT"
@@ -1326,13 +1342,13 @@ const Index = () => {
                                 {task.columnName || task.status}
                               </div>
                             </div>
-                            <p className="mt-1 text-sm text-gray-500">
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                               {formatDateFr(task.dueDate)}
                             </p>
                           </div>
                         ))
                       ) : (
-                        <div className="p-6 text-center text-gray-500">
+                        <div className="p-6 text-center text-gray-500 dark:text-gray-400">
                           Aucune tâche trouvée pour ce projet
                         </div>
                       )}
@@ -1367,16 +1383,16 @@ const Index = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pb-2">
-                        <p className="line-clamp-2 text-sm">
+                        <p className="line-clamp-2 text-sm text-gray-700 dark:text-gray-300">
                           {project.description}
                         </p>
                         <div className="mt-2 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                             {project.endDate
                               ? `Terminé le ${formatDateFr(project.endDate)}`
                               : `Démarré le ${formatDateFr(project.startDate)}`}
                           </span>
-                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs dark:bg-gray-800">
+                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
                             {
                               tasks.filter((t) => t.projectId === project.id)
                                 .length
@@ -1388,7 +1404,7 @@ const Index = () => {
                     </Card>
                   ))
                 ) : (
-                  <div className="p-10 text-center text-gray-500">
+                  <div className="p-10 text-center text-gray-500 dark:text-gray-400">
                     <p>
                       Aucun projet {projectFilter === "active" ? "actif" : ""}{" "}
                       trouvé
