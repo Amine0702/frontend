@@ -15,23 +15,12 @@ import {
   YAxis,
 } from "recharts";
 import {
-  PlusSquare,
-  CalendarDays,
-  BarChart3,
-  Clock,
-  Info,
-  FileText,
-  AlertCircle,
-  ClipboardCheck,
-} from "lucide-react";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/app/(components)/ui/dialog";
-import { Button } from "@/app/(components)/ui/button";
 import {
   Card,
   CardContent,
@@ -47,6 +36,19 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/app/(components)/ui/sheet";
+import { Badge } from "@/app/(components)/ui/badge";
+import TaskEditor from "@/app/(components)/TaskEditor";
+import {
+  PlusSquare,
+  CalendarDays,
+  BarChart3,
+  Clock,
+  Info,
+  FileText,
+  AlertCircle,
+  ClipboardCheck,
+} from "lucide-react";
+import { Button } from "@/app/(components)/ui/button";
 import {
   Table,
   TableBody,
@@ -59,7 +61,6 @@ import { useToast } from "@/app/(components)/ui/use-toast";
 import StatCard from "@/app/(components)/StatCard";
 import DashboardCard from "@/app/(components)/DashboardCard";
 import PriorityTaskList from "@/app/(components)/PriorityTaskList";
-import TaskEditor from "@/app/(components)/TaskEditor";
 import type { Task, Project } from "@/app/projects/types/dashboard";
 import {
   calculateProjectStatus,
@@ -70,9 +71,13 @@ import {
   getStatusColorClass,
 } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { useGetUserProjectsQuery } from "../state/api";
+import {
+  useGetUserProjectsQuery,
+  useGetUserPendingProjectsQuery,
+  useGetProjectQuery,
+  useUpdateTaskMutation,
+} from "@/app/state/api";
 import ModalNewProject from "@/app/(components)/ModalNewProject";
-import { Badge } from "@/app/(components)/ui/badge";
 
 // Composant principal
 const Index = () => {
@@ -104,6 +109,24 @@ const Index = () => {
     skip: !clerkUserId,
   });
 
+  // Fetch pending projects using RTK Query for the specific user
+  const {
+    data: pendingProjectsData,
+    isLoading: isLoadingPendingProjects,
+    error: pendingProjectsError,
+  } = useGetUserPendingProjectsQuery(clerkUserId, {
+    skip: !clerkUserId,
+  });
+
+  // Get selected project details if a project is selected
+  const { data: selectedProjectData, isLoading: isLoadingSelectedProject } =
+    useGetProjectQuery(selectedProjectId || "", {
+      skip: !selectedProjectId,
+    });
+
+  // Update task mutation
+  const [updateTask] = useUpdateTaskMutation();
+
   // Initialize projects and tasks state
   const [projects, setProjects] = useState<Project[]>([]);
   const [pendingProjects, setPendingProjects] = useState<Project[]>([]);
@@ -111,60 +134,58 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Fetch pending projects directly from the API
+  // Debug logs
   useEffect(() => {
-    const fetchPendingProjects = async () => {
-      try {
-        const response = await fetch(
-          "https://backend-production-96a2.up.railway.app/api/admin/projects/pending",
-        );
-        if (response.ok) {
-          const data = await response.json();
-          console.log(
-            "Données brutes des projets en attente (API directe):",
-            data,
-          );
+    console.log("=== DEBUG PENDING PROJECTS ===");
+    console.log("clerkUserId:", clerkUserId);
+    console.log("pendingProjectsData:", pendingProjectsData);
+    console.log("isLoadingPendingProjects:", isLoadingPendingProjects);
+    console.log("pendingProjectsError:", pendingProjectsError);
+    console.log("===============================");
+  }, [
+    clerkUserId,
+    pendingProjectsData,
+    isLoadingPendingProjects,
+    pendingProjectsError,
+  ]);
 
-          if (data && data.pendingProjects && data.pendingProjects.length > 0) {
-            const formattedPendingProjects = data.pendingProjects.map(
-              (project: any) => ({
-                id: project.id,
-                title: project.name || "Projet sans nom",
-                description:
-                  project.description || "Aucune description disponible",
-                startDate: project.start_date || null,
-                endDate: project.end_date || null,
-                clerkUserId: project.clerk_user_id || "",
-                status: "EN_ATTENTE",
-                progress: 0,
-                isActive: false,
-                createdAt: project.created_at || null,
-                team_members: project.team_members || [],
-              }),
-            );
+  // Process pending projects data when it's loaded
+  useEffect(() => {
+    console.log("Processing pending projects data...");
 
-            console.log(
-              "Projets en attente formatés (API directe):",
-              formattedPendingProjects,
-            );
-            setPendingProjects(formattedPendingProjects);
-          }
-        } else {
-          console.error(
-            "Erreur lors de la récupération des projets en attente:",
-            response.statusText,
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des projets en attente:",
-          error,
-        );
+    if (pendingProjectsData) {
+      console.log("Pending projects data received:", pendingProjectsData);
+
+      if (
+        pendingProjectsData.pendingProjects &&
+        Array.isArray(pendingProjectsData.pendingProjects)
+      ) {
+        const formattedPendingProjects =
+          pendingProjectsData.pendingProjects.map((project: any) => ({
+            id: project.id,
+            title: project.name || "Projet sans nom",
+            description: project.description || "Aucune description disponible",
+            startDate: project.start_date || null,
+            endDate: project.end_date || null,
+            clerkUserId: project.clerk_user_id || "",
+            status: "EN_ATTENTE",
+            progress: 0,
+            isActive: false,
+            createdAt: project.created_at || null,
+            team_members: project.team_members || [],
+          }));
+
+        console.log("Formatted pending projects:", formattedPendingProjects);
+        setPendingProjects(formattedPendingProjects);
+      } else {
+        console.log("No pending projects found in data");
+        setPendingProjects([]);
       }
-    };
-
-    fetchPendingProjects();
-  }, []);
+    } else {
+      console.log("No pending projects data");
+      setPendingProjects([]);
+    }
+  }, [pendingProjectsData]);
 
   // Process the projects data when it's loaded
   useEffect(() => {
@@ -227,6 +248,7 @@ const Index = () => {
         for (let index = 0; index < allProjects.length; index++) {
           const project = allProjects[index];
           try {
+            // Use RTK Query to get project details
             const projectDetails = await fetch(
               `https://backend-production-96a2.up.railway.app/api/projects/${project.id}`,
             ).then((res) => res.json());
@@ -486,14 +508,35 @@ const Index = () => {
   };
 
   // Mettre à jour une tâche
-  const handleUpdateTask = (updatedTask: Task) => {
-    setTasks((prev) =>
-      prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
-    );
-    toast({
-      title: "Tâche mise à jour",
-      description: "Les modifications ont été enregistrées avec succès.",
-    });
+  const handleUpdateTask = async (updatedTask: Task) => {
+    try {
+      // Use RTK Query mutation to update the task
+      await updateTask({
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        priority: updatedTask.priority,
+        due_date: updatedTask.dueDate,
+        // Add other fields as needed
+      }).unwrap();
+
+      // Update local state
+      setTasks((prev) =>
+        prev.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+      );
+
+      toast({
+        title: "Tâche mise à jour",
+        description: "Les modifications ont été enregistrées avec succès.",
+      });
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour la tâche.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Préparation des données
@@ -624,6 +667,19 @@ const Index = () => {
             </button>
           </div>
         </div>
+
+        {/* Debug info - Remove in production */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 rounded bg-gray-100 p-4 text-sm">
+            <p>
+              <strong>Debug Info:</strong>
+            </p>
+            <p>User ID: {clerkUserId}</p>
+            <p>Pending Projects Count: {pendingProjects.length}</p>
+            <p>Loading Pending: {isLoadingPendingProjects ? "Yes" : "No"}</p>
+            <p>Pending Projects Data: {JSON.stringify(pendingProjectsData)}</p>
+          </div>
+        )}
 
         {/* Statistiques rapides */}
         <div
@@ -1026,7 +1082,7 @@ const Index = () => {
                           ? `Début prévu: ${formatDateFr(project.startDate)}`
                           : "Date de début: Non définie"}
                       </span>
-                      <span className="bg-vioilet-50 rounded-full px-2 py-1 text-xs text-violet-800 dark:bg-violet-900/20 dark:text-violet-100">
+                      <span className="rounded-full bg-violet-50 px-2 py-1 text-xs text-violet-800 dark:bg-violet-900/20 dark:text-violet-100">
                         En attente d'approbation
                       </span>
                     </div>
