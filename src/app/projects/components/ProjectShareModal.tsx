@@ -13,7 +13,6 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useInviteUsersMutation } from "@/app/state/api";
 
 interface ProjectShareModalProps {
   onClose: () => void;
@@ -36,8 +35,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
   const [invitees, setInvitees] = useState<InviteeData[]>([
     { email: "", permission: "observer" },
   ]);
-
-  const [inviteUsers, { isLoading: isSubmitting }] = useInviteUsersMutation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEmailChange = (index: number, email: string) => {
     const newInvitees = [...invitees];
@@ -66,6 +64,7 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
     }
   };
 
+  // Modifier la fonction handleSubmit pour s'assurer que les invitations sont correctement envoyées
   const handleSubmit = async () => {
     // Validation des emails
     const validInvitees = invitees.filter(
@@ -78,24 +77,45 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
       return;
     }
 
-    try {
-      await inviteUsers({
-        id: projectId,
-        invitations: validInvitees.map((inv) => ({
-          email: inv.email,
-          permission: inv.permission,
-        })),
-      }).unwrap();
+    setIsSubmitting(true);
 
+    try {
+      // Appel à l'API pour envoyer les invitations
+      const response = await fetch(
+        `https://backend-production-96a2.up.railway.app/api/projects/${projectId}/invite`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clerk-User-Id": localStorage.getItem("currentUserId") || "",
+          },
+          body: JSON.stringify({
+            invitations: validInvitees.map((inv) => ({
+              email: inv.email,
+              permission: inv.permission,
+            })),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API error:", errorData);
+        throw new Error(
+          `Erreur API: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const data = await response.json();
       toast.success(
-        `${validInvitees.length} invitation(s) envoyée(s) avec succès. Les utilisateurs recevront un email pour accepter l'invitation.`,
+        `${validInvitees.length} invitation(s) envoyée(s) avec succès`,
       );
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error sending invitations:", error);
-      const errorMessage =
-        error?.data?.message || "Erreur lors de l'envoi des invitations";
-      toast.error(errorMessage);
+      toast.error("Erreur lors de l'envoi des invitations");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -119,13 +139,6 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
             Invitez des personnes à collaborer sur le projet{" "}
             <span className="font-semibold">{projectName}</span>
           </p>
-          <div className="rounded-md bg-blue-50 p-3">
-            <p className="text-xs text-blue-700">
-              💡 Les invités recevront un email avec un lien pour accepter
-              l'invitation. Ils ne rejoindront le projet qu'après avoir cliqué
-              sur le lien d'acceptation.
-            </p>
-          </div>
         </div>
 
         <div className="mb-6 space-y-4">
@@ -212,14 +225,13 @@ const ProjectShareModal: React.FC<ProjectShareModalProps> = ({
           <button
             onClick={onClose}
             className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200"
-            disabled={isSubmitting}
           >
             Annuler
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600 disabled:opacity-50"
+            className="flex items-center rounded-md bg-violet-500 px-4 py-2 text-white hover:bg-violet-600"
           >
             {isSubmitting ? (
               <>

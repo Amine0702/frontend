@@ -7,10 +7,14 @@ export const api = createApi({
       process.env.NEXT_PUBLIC_API_URL ||
       "https://backend-production-96a2.up.railway.app/api",
     prepareHeaders: (headers, { getState }) => {
+      // Récupérer l'ID utilisateur de Clerk depuis le localStorage
       const clerkUserId = localStorage.getItem("currentUserId");
+
+      // Ajouter l'ID utilisateur de Clerk aux headers
       if (clerkUserId) {
         headers.set("X-Clerk-User-Id", clerkUserId);
       }
+
       return headers;
     },
   }),
@@ -43,6 +47,7 @@ export const api = createApi({
       providesTags: ["User"],
     }),
 
+    // Nouvel endpoint pour mettre à jour le profil utilisateur
     updateUserProfile: builder.mutation({
       query: ({ clerkUserId, ...profileData }) => ({
         url: `/users/${clerkUserId}/profile`,
@@ -52,14 +57,17 @@ export const api = createApi({
       invalidatesTags: ["User"],
     }),
 
+    // Ajouter cette nouvelle mutation dans la section des endpoints, juste après updateUserProfile:
     uploadProfilePicture: builder.mutation({
       query: ({ clerkUserId, file }) => {
         const formData = new FormData();
         formData.append("profile_picture", file);
+
         return {
           url: `/users/${clerkUserId}/upload-profile-picture`,
           method: "POST",
           body: formData,
+          // Désactiver la transformation automatique du corps de la requête
           formData: true,
         };
       },
@@ -93,6 +101,7 @@ export const api = createApi({
       providesTags: ["User"],
     }),
 
+    // Add these to the existing endpoints
     inviteUser: builder.mutation<any, { email: string; role: string }>({
       query: (data) => ({
         url: "/users/invite",
@@ -100,11 +109,9 @@ export const api = createApi({
         body: data,
       }),
     }),
-
     getPendingInvitations: builder.query<any, void>({
       query: () => "/users/invitations",
     }),
-
     cancelInvitation: builder.mutation<any, number>({
       query: (id) => ({
         url: `/users/invitations/${id}`,
@@ -136,6 +143,7 @@ export const api = createApi({
       ],
     }),
 
+    // Ajouter l'endpoint pour la suppression de projet
     deleteProject: builder.mutation<
       { message: string; success: boolean },
       string
@@ -150,6 +158,7 @@ export const api = createApi({
       invalidatesTags: ["Projects"],
     }),
 
+    // Accept project invitation
     acceptInvitation: builder.mutation({
       query: ({ token, clerkUserId }) => ({
         url: `/projects/invitation/${token}`,
@@ -184,6 +193,7 @@ export const api = createApi({
       ],
     }),
 
+    // Ajouter l'endpoint pour supprimer une colonne:
     deleteColumn: builder.mutation({
       query: (columnId) => ({
         url: `/columns/${columnId}`,
@@ -206,6 +216,7 @@ export const api = createApi({
       ],
     }),
 
+    // Nouvelle mutation pour générer une tâche avec l'IA
     generateTaskWithAI: builder.mutation({
       query: (data) => ({
         url: "/ai/generate-task",
@@ -272,6 +283,7 @@ export const api = createApi({
         const formData = new FormData();
         formData.append("file", file);
         if (name) formData.append("name", name);
+
         return {
           url: `/tasks/${taskId}/attachments`,
           method: "POST",
@@ -292,9 +304,11 @@ export const api = createApi({
       }),
       transformResponse: (response: unknown) => {
         console.log("Raw teams response:", response);
+        // If response is already an array, return it directly
         if (Array.isArray(response)) {
           return response;
         }
+        // If response has a data property that's an array, return that
         if (
           response &&
           typeof response === "object" &&
@@ -303,6 +317,7 @@ export const api = createApi({
         ) {
           return (response as { data: any }).data;
         }
+        // Otherwise return an empty array to prevent errors
         return [];
       },
       providesTags: ["Teams"],
@@ -378,7 +393,6 @@ export const api = createApi({
       query: () => "/notes",
       providesTags: ["Notes"],
     }),
-
     createNote: builder.mutation({
       query: (note) => ({
         url: "/notes",
@@ -387,7 +401,6 @@ export const api = createApi({
       }),
       invalidatesTags: ["Notes"],
     }),
-
     updateNote: builder.mutation({
       query: ({ id, ...noteData }) => ({
         url: `/notes/${id}`,
@@ -396,7 +409,6 @@ export const api = createApi({
       }),
       invalidatesTags: ["Notes"],
     }),
-
     deleteNote: builder.mutation({
       query: (id) => ({
         url: `/notes/${id}`,
@@ -404,13 +416,13 @@ export const api = createApi({
       }),
       invalidatesTags: ["Notes"],
     }),
-
     getUserNotes: builder.query({
       query: (clerkUserId) => `/notes/user/${clerkUserId}`,
       providesTags: ["Notes"],
     }),
 
-    // Report endpoints
+    // Nouveaux endpoints pour les rapports
+    // Nouveaux endpoints pour les rapports - remplacer les anciens
     getProjectStats: builder.query({
       query: (projectId) => `/projects/${projectId}/stats`,
       providesTags: (result, error, id) => [
@@ -464,6 +476,7 @@ export const api = createApi({
       }),
     }),
 
+    // Nouveaux endpoints pour les statistiques d'équipe dans les rapports
     getTeamPerformance: builder.query({
       query: (teamId) => `/teams/${teamId}/performance`,
       providesTags: (result, error, id) => [
@@ -480,6 +493,7 @@ export const api = createApi({
       ],
     }),
 
+    // Endpoint pour obtenir les statistiques combinées pour les rapports
     getReportDashboard: builder.query({
       query: () => `/reports/dashboard`,
       providesTags: ["Projects", "Teams", "ProjectStats", "Reports"],
@@ -490,6 +504,7 @@ export const api = createApi({
       providesTags: ["Projects", "Tasks"],
     }),
 
+    // Add this endpoint to the api object in the endpoints section
     getProjectLifecycle: builder.query<any, number>({
       query: (id: number) => `/projects/${id}/lifecycle`,
       providesTags: (result, error, id) => [
@@ -498,6 +513,7 @@ export const api = createApi({
       ],
     }),
 
+    // Project history endpoints
     getProjectHistory: builder.query<any, number>({
       query: (projectId) => `/projects/${projectId}/history`,
       providesTags: (result, error, id) => [{ type: "Projects", id }],
@@ -521,11 +537,11 @@ export const api = createApi({
       ],
     }),
 
+    // Add this new endpoint in the endpoints object inside createApi
     getAIGeneratedTasks: builder.query<any, void>({
       query: () => `/ai/generated-tasks`,
       providesTags: ["Tasks"],
     }),
-
     removeMemberFromProject: builder.mutation({
       query: ({ projectId, memberId }) => ({
         url: `/projects/${projectId}/members/${memberId}`,
@@ -538,11 +554,13 @@ export const api = createApi({
       ],
     }),
 
+    // Ajouter ce nouvel endpoint dans la section endpoints du createApi
     getRecentActivities: builder.query<any, void>({
       query: () => `/activities/recent`,
       providesTags: ["Projects", "Tasks"],
     }),
 
+    // Ajouter après getRecentActivities
     getPendingProjects: builder.query<any, void>({
       query: () => `/admin/projects/pending`,
       providesTags: ["Projects"],
@@ -564,7 +582,7 @@ export const api = createApi({
       invalidatesTags: ["Projects"],
     }),
 
-    // Notification endpoints
+    // Nouveaux endpoints pour les notifications
     getUserNotifications: builder.query<any, void>({
       query: () => `/notifications`,
       providesTags: ["Notifications"],
@@ -593,7 +611,7 @@ export const api = createApi({
       }),
       invalidatesTags: ["Notifications"],
     }),
-
+    // Ajouter ces nouveaux endpoints dans la section endpoints du createApi
     getProjectStatsByMonth: builder.query<any, void>({
       query: () => `/projects/stats/monthly`,
       providesTags: ["Projects", "ProjectStats"],
@@ -603,7 +621,7 @@ export const api = createApi({
       query: (userId) => `/users/${userId}/details`,
       providesTags: ["User"],
     }),
-
+    // Ajouter ce nouvel endpoint dans la section endpoints du createApi
     getProjectTaskAnalysis: builder.query<any, number>({
       query: (id: number) => `/projects/${id}/task-analysis`,
       providesTags: (result, error, id) => [
@@ -611,26 +629,10 @@ export const api = createApi({
         { type: "Tasks", id },
       ],
     }),
-
-    // FIXED: Update member role endpoint with correct URL
-    updateMemberRole: builder.mutation<
-      { message: string; member?: any },
-      { projectId: string; memberId: string; role: string }
-    >({
-      query: ({ projectId, memberId, role }) => ({
-        url: `/projects/${projectId}/members/${memberId}/permission`,
-        method: "PUT",
-        body: { role },
-      }),
-      invalidatesTags: (result, error, { projectId }) => [
-        { type: "Projects", id: projectId },
-        { type: "Teams" },
-        { type: "Notifications" },
-      ],
-    }),
   }),
 });
 
+// Add this new endpoint to fetch all teams directly from the backend
 export const useGetAllTeamsQuery = api.injectEndpoints({
   endpoints: (builder) => ({
     getAllTeams: builder.query({
@@ -661,6 +663,7 @@ export const {
   useToggleTaskTimerMutation,
   useAddCommentMutation,
   useAddAttachmentMutation,
+  // Team endpoints
   useGetTeamsQuery,
   useGetTeamQuery,
   useGetTeamStatsQuery,
@@ -670,11 +673,14 @@ export const {
   useAddTeamMembersMutation,
   useRemoveTeamMembersMutation,
   useExportTeamMembersQuery,
+
+  // Nouveaux hooks pour les notes
   useGetNotesQuery,
   useCreateNoteMutation,
   useUpdateNoteMutation,
   useDeleteNoteMutation,
   useGetUserNotesQuery,
+  // Nouveaux hooks pour les rapports
   useGetProjectStatsQuery,
   useGetAllProjectsStatsQuery,
   useGenerateProjectReportMutation,
@@ -685,6 +691,8 @@ export const {
   useGetTeamMemberPerformanceQuery,
   useGetReportDashboardQuery,
   useGetDashboardDataQuery,
+
+  // Add this to the export section at the bottom of the file
   useGetProjectLifecycleQuery,
   useGetProjectHistoryQuery,
   useGetAllProjectsHistoryQuery,
@@ -693,25 +701,30 @@ export const {
   useDeleteUserMutation,
   useGetUserStatsQuery,
   useInviteUsersMutation,
+  // Add this to the export section at the bottom of the file
   useGetAIGeneratedTasksQuery,
   useDeleteProjectMutation,
   useRemoveMemberFromProjectMutation,
+  // Puis ajouter ce hook à la liste des exports en bas du fichier:
   useUploadProfilePictureMutation,
   useInviteUserMutation,
   useGetPendingInvitationsQuery,
   useCancelInvitationMutation,
   useDeleteColumnMutation,
+  // Puis ajouter ce hook à la liste des exports en bas du fichier:
   useGetRecentActivitiesQuery,
+  // Nouveaux hooks pour les notifications
   useGetUserNotificationsQuery,
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
   useDeleteNotificationMutation,
+  // Ajouter ces exports à la fin du fichier
   useGetProjectStatsByMonthQuery,
   useGetUserDetailsByIdQuery,
+  // Ajouter ces exports à la fin du fichier
   useGetPendingProjectsQuery,
   useApproveProjectMutation,
   useRejectProjectMutation,
+  // Ajouter ce hook à la liste des exports en bas du fichier
   useGetProjectTaskAnalysisQuery,
-  // FIXED: Export the corrected hook
-  useUpdateMemberRoleMutation,
 } = api;
