@@ -58,17 +58,19 @@ export default function CreateMeetingPage() {
   }
 
   if (!client || !user) {
-    return <Loader2 className="mx-auto animate-spin text-white" />;
+    return (
+      <Loader2 className="mx-auto animate-spin text-gray-900 dark:text-gray-100" />
+    );
   }
 
   return (
-    <div className="bg-black-200 flex min-h-screen flex-col items-center space-y-8 py-12">
-      <h1 className="text-3xl font-semibold text-black dark:text-white">
+    <div className="flex min-h-screen flex-col items-center space-y-8 bg-white py-12 dark:bg-gray-950">
+      <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
         Bienvenue {user.username}!
       </h1>
 
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-gray-100 p-8 shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-900">
+      <div className="w-full max-w-md space-y-6 rounded-lg bg-gray-50 p-8 shadow-lg dark:bg-gray-900">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           Créer une nouvelle réunion
         </h2>
         <DescriptionInput
@@ -82,7 +84,7 @@ export default function CreateMeetingPage() {
         />
         <Button
           onClick={createMeeting}
-          className="w-full rounded-md bg-gradient-to-r from-purple-500 to-indigo-500 py-2 text-white hover:bg-blue-700"
+          className="w-full rounded-md bg-gradient-to-r from-purple-500 to-indigo-500 py-2 text-white hover:from-purple-600 hover:to-indigo-600"
         >
           Créer la réunion
         </Button>
@@ -102,23 +104,23 @@ function DescriptionInput({ value, onChange }: DescriptionInputProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-900">
+      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
         Informations sur la réunion :
       </div>
       <div className="flex items-center">
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
           checked={active}
           onChange={(e) => setActive(e.target.checked)}
           style={{
-            WebkitAppearance: "radio",
-            MozAppearance: "radio",
-            appearance: "radio",
+            WebkitAppearance: "checkbox",
+            MozAppearance: "checkbox",
+            appearance: "checkbox",
             marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">
+        <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
           Inclure une description
         </span>
       </div>
@@ -127,7 +129,7 @@ function DescriptionInput({ value, onChange }: DescriptionInputProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Entrez la description de la réunion..."
-          className="h-24 w-full rounded-md border border-gray-300 bg-gray-50 p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="h-24 w-full rounded-md border border-gray-300 bg-white p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
         />
       )}
     </div>
@@ -150,14 +152,14 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-900">
+      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
         Début de la réunion :
       </div>
       <div className="flex items-center">
         <input
           type="radio"
           name="startTime"
-          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
           checked={!active}
           onChange={() => {
             setActive(false);
@@ -170,7 +172,7 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
             marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">
+        <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
           Commencer immédiatement
         </span>
       </div>
@@ -178,7 +180,7 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
         <input
           type="radio"
           name="startTime"
-          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
           checked={active}
           onChange={() => {
             setActive(true);
@@ -191,18 +193,18 @@ function StartTimeInput({ value, onChange }: StartTimeInputProps) {
             marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">
+        <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
           Planifier pour plus tard
         </span>
       </div>
       {active && (
         <div className="mt-2">
-          <div className="mb-1 block text-sm font-medium text-gray-900">
+          <div className="mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100">
             Sélectionnez l'heure de début :
           </div>
           <input
             type="datetime-local"
-            className="w-full rounded-md border border-gray-300 bg-gray-50 p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-md border border-gray-300 bg-white p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             min={dateTimeLocalNow}
@@ -223,12 +225,14 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-medium text-gray-900">Participants</div>
+      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        Participants
+      </div>
       <div className="flex items-center">
         <input
           type="radio"
           name="participants"
-          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
           checked={!active}
           onChange={() => {
             setActive(false);
@@ -241,7 +245,7 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
             marginRight: "4px",
           }}
         />
-        <div className="ml-2 text-sm text-gray-900">
+        <div className="ml-2 text-sm text-gray-900 dark:text-gray-100">
           Réunion ouverte (Toute personne avec le lien peut rejoindre)
         </div>
       </div>
@@ -249,7 +253,7 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
         <input
           type="radio"
           name="participants"
-          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
           checked={active}
           onChange={() => setActive(true)}
           style={{
@@ -259,15 +263,17 @@ function ParticipantsInputt({ value, onChange }: ParticipantsInputtProps) {
             marginRight: "4px",
           }}
         />
-        <span className="ml-2 text-sm text-gray-900">Réunion privée</span>
+        <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
+          Réunion privée
+        </span>
       </div>
       {active && (
         <div className="mt-2">
-          <div className="mb-1 block text-sm font-medium text-gray-900">
+          <div className="mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100">
             Entrez les emails des participants :
           </div>
           <textarea
-            className="h-20 w-full rounded-md border border-gray-300 bg-gray-50 p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="h-20 w-full rounded-md border border-gray-300 bg-white p-3 text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Entrez les emails séparés par des virgules"
@@ -288,11 +294,11 @@ function MeetingLink({ call }: MeetingLinkProps) {
   return (
     <div className="mt-4 flex flex-col items-center gap-4 text-center">
       <div className="flex items-center gap-3">
-        <span className="text-gray-900">
+        <span className="text-gray-900 dark:text-gray-100">
           Lien d'invitation :{" "}
           <Link
             href={meetingLink}
-            className="font-medium text-blue-600 hover:underline"
+            className="font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
             {meetingLink}
           </Link>
@@ -303,9 +309,9 @@ function MeetingLink({ call }: MeetingLinkProps) {
             navigator.clipboard.writeText(meetingLink);
             alert("Copié dans le presse-papiers");
           }}
-          className="rounded-full p-2 transition-colors hover:bg-gray-200"
+          className="rounded-full p-2 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
         >
-          <Copy className="h-5 w-5 text-gray-900 dark:text-white" />
+          <Copy className="h-5 w-5 text-gray-900 dark:text-gray-100" />
         </button>
       </div>
       <a
@@ -316,7 +322,7 @@ function MeetingLink({ call }: MeetingLinkProps) {
         )}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-blue-600 hover:underline"
+        className="text-sm text-blue-600 hover:underline dark:text-blue-400"
       >
         Envoyer l'invitation par email
       </a>

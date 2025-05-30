@@ -36,13 +36,23 @@ export default function MyMeetingsPage() {
   }, [client, user?.id]);
 
   return (
-    <div className="space-y-3">
-      <h1 className="text-center text-2xl font-bold">Mes réunions</h1>
-      {!calls && <Loader2 className="mx-auto animate-spin" />}
-      {calls?.length === 0 && <p>Aucune réunion trouvée</p>}
-      <ul className="list-inside list-disc space-y-2">
-        {calls?.map((call) => <MeetingItem key={call.id} call={call} />)}
-      </ul>
+    <div className="min-h-screen bg-white p-6 dark:bg-gray-950">
+      <div className="space-y-3">
+        <h1 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Mes réunions
+        </h1>
+        {!calls && (
+          <Loader2 className="mx-auto animate-spin text-gray-900 dark:text-gray-100" />
+        )}
+        {calls?.length === 0 && (
+          <p className="text-center text-gray-600 dark:text-gray-400">
+            Aucune réunion trouvée
+          </p>
+        )}
+        <ul className="list-inside list-disc space-y-2">
+          {calls?.map((call) => <MeetingItem key={call.id} call={call} />)}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -61,12 +71,17 @@ function MeetingItem({ call }: MeetingItemProps) {
 
   return (
     <li>
-      <Link href={meetingLink} className="hover:underline">
+      <Link
+        href={meetingLink}
+        className="text-blue-600 hover:underline dark:text-blue-400"
+      >
         {call.state.startsAt?.toLocaleString()}
         {isInfuture && " (À venir)"}
         {hasEnded && " (Terminée)"}
       </Link>
-      <p className="ml-6 text-gray-500">{call.state.custom.description}</p>
+      <p className="ml-6 text-gray-500 dark:text-gray-400">
+        {call.state.custom.description}
+      </p>
     </li>
   );
 }

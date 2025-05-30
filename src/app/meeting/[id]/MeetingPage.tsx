@@ -30,11 +30,21 @@ export default function MeetingPage({ id }: MeetingPageProps) {
   const { user, isLoaded: userLoaded } = useUser();
 
   if (!userLoaded || callLoading) {
-    return <Loader2 className="mx-auto animate-spin" />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-gray-950">
+        <Loader2 className="mx-auto animate-spin text-gray-900 dark:text-gray-100" />
+      </div>
+    );
   }
 
   if (!call) {
-    return <p className="text-center font-bold">Réunion non trouvée</p>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-gray-950">
+        <p className="text-center font-bold text-gray-900 dark:text-gray-100">
+          Réunion non trouvée
+        </p>
+      </div>
+    );
   }
 
   const notAllowedToJoin =
@@ -43,17 +53,21 @@ export default function MeetingPage({ id }: MeetingPageProps) {
 
   if (notAllowedToJoin) {
     return (
-      <p className="text-center font-bold">
-        Vous n'êtes pas autorisé à voir cette réunion
-      </p>
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-gray-950">
+        <p className="text-center font-bold text-gray-900 dark:text-gray-100">
+          Vous n'êtes pas autorisé à voir cette réunion
+        </p>
+      </div>
     );
   }
   return (
-    <StreamCall call={call}>
-      <StreamTheme>
-        <MeetingScreen />
-      </StreamTheme>
-    </StreamCall>
+    <div className="min-h-screen bg-white dark:bg-gray-950">
+      <StreamCall call={call}>
+        <StreamTheme>
+          <MeetingScreen />
+        </StreamTheme>
+      </StreamCall>
+    </div>
   );
 }
 
@@ -86,9 +100,9 @@ function MeetingScreen() {
   const description = call.state.custom.description;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {description && (
-        <p className="text-center">
+        <p className="text-center text-gray-900 dark:text-gray-100">
           Description de la réunion :{" "}
           <span className="font-bold">{description}</span>
         </p>
@@ -132,16 +146,18 @@ function SetupUI({ onSetupComplete }: SetupUIProps) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <h1 className="text-center text-2xl font-bold">Configuration</h1>
+      <h1 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+        Configuration
+      </h1>
       <VideoPreview />
       <div className="flex h-16 items-center gap-3">
         <AudioVolumeIndicator />
         <DeviceSettings />
       </div>
-      <div className="flex items-center gap-2 font-medium">
+      <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100">
         <input
           type="checkbox"
-          className="h-4 w-4"
+          className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-800"
           style={{
             WebkitAppearance: "checkbox",
             MozAppearance: "checkbox",
@@ -154,7 +170,7 @@ function SetupUI({ onSetupComplete }: SetupUIProps) {
         Rejoindre avec micro et caméra désactivés
       </div>
       <button
-        className="flex items-center rounded bg-blue-primary px-3 py-2 text-white hover:bg-blue-600"
+        className="flex items-center rounded bg-blue-500 px-3 py-2 text-white hover:bg-blue-600"
         onClick={onSetupComplete}
       >
         Rejoindre la réunion
@@ -169,7 +185,9 @@ function CallUI() {
   const callingState = useCallCallingState();
 
   if (callingState !== CallingState.JOINED) {
-    return <Loader2 className="mx-auto animate-spin" />;
+    return (
+      <Loader2 className="mx-auto animate-spin text-gray-900 dark:text-gray-100" />
+    );
   }
 
   return <FlexibleCallLayout />;
@@ -179,20 +197,23 @@ function UpcomingMeetingScreen() {
   const call = useStreamCall();
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <p>
+    <div className="flex flex-col items-center gap-6 p-6">
+      <p className="text-gray-900 dark:text-gray-100">
         Cette réunion n'a pas encore commencé. Elle débutera le{" "}
         <span className="font-bold">
           {call.state.startsAt?.toLocaleString()}
         </span>
       </p>
       {call.state.custom.description && (
-        <p>
+        <p className="text-gray-900 dark:text-gray-100">
           Description :{" "}
           <span className="font-bold">{call.state.custom.description}</span>
         </p>
       )}
-      <Link href="/meeting" className={buttonClassName}>
+      <Link
+        href="/meeting"
+        className={`${buttonClassName} bg-blue-500 hover:bg-blue-600`}
+      >
         Retour à l'accueil
       </Link>
     </div>
@@ -201,13 +222,20 @@ function UpcomingMeetingScreen() {
 
 function MeetingEndedScreen() {
   return (
-    <div className="flex flex-col items-center gap-6">
-      <p className="font-bold">Cette réunion est terminée.</p>
-      <Link href="/meeting" className={buttonClassName}>
+    <div className="flex flex-col items-center gap-6 p-6">
+      <p className="font-bold text-gray-900 dark:text-gray-100">
+        Cette réunion est terminée.
+      </p>
+      <Link
+        href="/meeting"
+        className={`${buttonClassName} bg-blue-500 hover:bg-blue-600`}
+      >
         Retour à l'accueil
       </Link>
       <div className="space-y-3">
-        <h2 className="text-center text-xl font-bold">Enregistrements</h2>
+        <h2 className="text-center text-xl font-bold text-gray-900 dark:text-gray-100">
+          Enregistrements
+        </h2>
         <RecordingsList />
       </div>
     </div>

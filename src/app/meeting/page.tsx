@@ -3,7 +3,7 @@ import CreateMeetingPage from "./CreateMeetingPage";
 
 export default function Home() {
   return (
-    <div className="meeting-container h-full w-full p-4">
+    <div className="meeting-container h-full w-full bg-white dark:bg-gray-950">
       <Navbar />
       <CreateMeetingPage />
     </div>
