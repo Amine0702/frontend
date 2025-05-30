@@ -1,6 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { ThemeToggle } from "./theme-toggle";
 
 export default function Navbar() {
   return (
@@ -13,7 +12,6 @@ export default function Navbar() {
           Nouvelle réunion
         </Link>
         <div className="flex items-center gap-3">
-          <ThemeToggle />
           <SignedIn>
             <div className="flex items-center gap-5">
               <Link
