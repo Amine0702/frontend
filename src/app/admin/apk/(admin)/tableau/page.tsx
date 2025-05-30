@@ -35,7 +35,7 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   useGetUserProjectsQuery,
   useGetProjectQuery,
-  useUpdateUserRoleMutation,
+  useUpdateMemberRoleMutation,
 } from "@/app/state/api";
 
 // Types
@@ -435,7 +435,7 @@ function KanbanMembers({
   projectName: string;
 }) {
   const { data: projectData, isLoading, error } = useGetProjectQuery(projectId);
-  const [updateMemberRole] = useUpdateUserRoleMutation();
+  const [updateMemberRole] = useUpdateMemberRoleMutation();
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
   const { toast } = useToast();
