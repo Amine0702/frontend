@@ -52,7 +52,7 @@ const Slider = () => (
                     playsInline
                     style={{ background: "transparent" }}
                   >
-                    <source src="img/logo/video.mp4" type="video/mp4" />
+                    <source src="images/logo/video.mp4" type="video/mp4" />
                     Votre navigateur ne supporte pas la lecture de vidéos.
                   </video>
                 </div>
