@@ -17,7 +17,6 @@ import {
   Play,
   Pause,
   Loader2,
-  Download,
 } from "lucide-react";
 import { format, type Locale } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -32,7 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/app/components/ui/alert-dialog";
-import { useLazyDownloadAttachmentQuery } from "@/app/state/api";
 
 // Fonction de formatage sécurisée
 const safeFormat = (
@@ -82,16 +80,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [newComment, setNewComment] = useState("");
   const [elapsedTime, setElapsedTime] = useState("0h");
   const [isLoading, setIsLoading] = useState(false);
-  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<
-    string | null
-  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  // RTK Query hook pour télécharger les pièces jointes
-  const [downloadAttachment, { isFetching: isDownloading }] =
-    useLazyDownloadAttachmentQuery();
+  // Améliorons la vérification des permissions dans TaskModal
+  // Remplaçons la partie qui détermine les permissions
 
   // Déterminer les permissions en fonction du rôle et de la propriété de la tâche
   const canEdit = canUserModifyTask(task);
@@ -373,89 +367,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
     return null;
   };
 
-  // Fonction pour télécharger une pièce jointe avec RTK Query
-  const handleDownloadAttachment = async (
-    attachmentId: string,
-    fileName: string,
-  ) => {
-    try {
-      console.log(
-        "Début du téléchargement pour l'attachment ID:",
-        attachmentId,
-      );
-      setDownloadingAttachmentId(attachmentId);
-
-      // Utiliser RTK Query pour télécharger le fichier
-      const result = await downloadAttachment(attachmentId);
-
-      console.log("Résultat du téléchargement:", result);
-
-      if (result.error) {
-        console.error("Erreur RTK Query:", result.error);
-        let errorMessage = "Erreur lors du téléchargement du fichier";
-
-        if ("status" in result.error) {
-          if (result.error.status === 404) {
-            errorMessage = "Fichier non trouvé sur le serveur";
-          } else if (result.error.status === 403) {
-            errorMessage =
-              "Vous n'avez pas la permission d'accéder à ce fichier";
-          } else if (result.error.status === 401) {
-            errorMessage = "Authentification requise";
-          }
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      if (!result.data) {
-        throw new Error("Aucune donnée reçue du serveur");
-      }
-
-      console.log(
-        "Blob reçu, taille:",
-        result.data.size,
-        "Type:",
-        result.data.type,
-      );
-
-      if (result.data.size === 0) {
-        throw new Error("Le fichier téléchargé est vide");
-      }
-
-      // Créer un URL temporaire pour le blob
-      const blobUrl = window.URL.createObjectURL(result.data);
-
-      // Créer un élément <a> temporaire pour déclencher le téléchargement
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = fileName;
-      link.style.display = "none";
-
-      // Ajouter au DOM, cliquer, puis supprimer
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Nettoyer l'URL du blob après un délai
-      setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl);
-      }, 100);
-
-      toast.success("Fichier téléchargé avec succès");
-    } catch (error) {
-      console.error("Error downloading attachment:", error);
-      toast.error(
-        `Erreur lors du téléchargement: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
-      );
-    } finally {
-      setDownloadingAttachmentId(null);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+        {/* ... keep existing code (top section) */}
+
         <div className="flex items-center justify-between border-b bg-violet-50 p-4">
           <div className="flex items-center space-x-2">
             <span
@@ -471,6 +387,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
             )}
           </div>
 
+          {/* Assurons-nous que les boutons d'action ne sont visibles que pour les utilisateurs autorisés */}
+          {/* Dans la partie des boutons d'action (en haut à droite) */}
           <div className="flex items-center space-x-2">
             {/* Compteur de temps avec bouton toggle */}
             <div className="flex items-center rounded-md bg-violet-100 px-3 py-1.5 text-sm text-violet-600">
@@ -652,6 +570,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </div>
               </div>
 
+              {/* Ajouter cette note informative après les champs de priorité et d'assignation */}
               <div className="col-span-2 mt-2">
                 <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   <p>
@@ -901,29 +820,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
                               {formatFileSize(attachment.size)}
                             </div>
                           </div>
-                          <button
-                            onClick={() =>
-                              handleDownloadAttachment(
-                                attachment.id,
-                                attachment.name,
-                              )
-                            }
-                            disabled={
-                              downloadingAttachmentId === attachment.id ||
-                              isDownloading
-                            }
-                            className="flex items-center rounded-md bg-violet-100 px-2 py-1 text-sm text-violet-700 transition-colors hover:bg-violet-200 disabled:opacity-50 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40"
+                          <a
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-md bg-violet-100 px-2 py-1 text-sm text-violet-700 transition-colors hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40"
                           >
-                            {downloadingAttachmentId === attachment.id ? (
-                              <Loader2
-                                size={16}
-                                className="mr-1 animate-spin"
-                              />
-                            ) : (
-                              <Download size={16} className="mr-1" />
-                            )}
                             Télécharger
-                          </button>
+                          </a>
                         </div>
                       ))}
                     </div>
@@ -1051,3 +955,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 };
 
 export default TaskModal;
+
+function updateElapsedTime() {
+  throw new Error("Function not implemented.");
+}

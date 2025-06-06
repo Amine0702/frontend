@@ -284,26 +284,6 @@ export const api = createApi({
       ],
     }),
 
-    downloadAttachment: builder.query<Blob, string>({
-      query: (attachmentId) => ({
-        url: `/attachments/${attachmentId}/download`,
-        responseHandler: async (response) => {
-          if (!response.ok) {
-            // Essayer de lire le message d'erreur JSON si possible
-            try {
-              const errorData = await response.json();
-              throw new Error(errorData.message || `HTTP ${response.status}`);
-            } catch {
-              throw new Error(
-                `HTTP ${response.status}: ${response.statusText}`,
-              );
-            }
-          }
-          return response.blob();
-        },
-      }),
-    }),
-
     // Team endpoints
     getTeams: builder.query({
       query: (params = {}) => ({
@@ -714,7 +694,6 @@ export const {
   useToggleTaskTimerMutation,
   useAddCommentMutation,
   useAddAttachmentMutation,
-  useLazyDownloadAttachmentQuery,
   useGetTeamsQuery,
   useGetTeamQuery,
   useGetTeamStatsQuery,
