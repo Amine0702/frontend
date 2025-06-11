@@ -955,7 +955,3 @@ const TaskModal: React.FC<TaskModalProps> = ({
 };
 
 export default TaskModal;
-
-function updateElapsedTime() {
-  throw new Error("Function not implemented.");
-}
