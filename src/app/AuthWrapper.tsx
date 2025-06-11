@@ -57,7 +57,22 @@ export default function AuthWrapper({
             }
           }
         })
-        .catch((err) => console.error("Erreur API Laravel :", err));
+        .catch((err) => {
+          console.error("Erreur API Laravel :", err);
+
+          // Afficher plus de détails sur l'erreur
+          if (err.data) {
+            console.error("Détails de l'erreur :", err.data);
+          }
+
+          // En cas d'erreur, on peut quand même permettre à l'utilisateur de continuer
+          // avec un rôle par défaut
+          setIsUserCreated(true);
+          setUserRole("user");
+
+          // Optionnel : afficher une notification à l'utilisateur
+          // toast.error("Erreur lors de la synchronisation du profil");
+        });
     }
   }, [authLoaded, userLoaded, isSignedIn, user, isUserCreated, createUser]);
 
